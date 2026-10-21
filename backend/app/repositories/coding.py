@@ -1,7 +1,8 @@
 """Tenant-scoped coding job, suggestion, evidence, and review repositories."""
 import json
+from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from ..core.errors import NotFoundError
 from ..models.coding_job import CodingAttempt, CodingJob
@@ -52,6 +53,8 @@ class CodingJobRepository(TenantScopedRepository):
         code_set_version: str | None,
         request_id: str | None,
         status: str,
+        attempt_number: int = 1,
+        started_at: datetime | None = None,
         latency_ms: int | None = None,
         prompt_tokens: int = 0,
         completion_tokens: int = 0,
@@ -60,6 +63,8 @@ class CodingJobRepository(TenantScopedRepository):
     ) -> CodingAttempt:
         attempt = CodingAttempt(
             job_id=job_id,
+            attempt_number=attempt_number,
+            started_at=started_at,
             provider_name=provider_name,
             model_name=model_name,
             prompt_version=prompt_version,
@@ -76,6 +81,22 @@ class CodingJobRepository(TenantScopedRepository):
         self.db.add(attempt)
         self.db.flush()
         return attempt
+
+    def list_jobs(self, *, status: str | None = None, limit: int = 50, offset: int = 0) -> list[CodingJob]:
+        stmt = select(CodingJob).where(CodingJob.organization_id == self.organization_id)
+        if status:
+            stmt = stmt.where(CodingJob.status == status)
+        return self.db.execute(
+            stmt.order_by(CodingJob.created_at.desc()).limit(limit).offset(offset)
+        ).scalars().all()
+
+    def count_jobs(self, status: str | None = None) -> int:
+        stmt = select(func.count()).select_from(CodingJob).where(
+            CodingJob.organization_id == self.organization_id
+        )
+        if status:
+            stmt = stmt.where(CodingJob.status == status)
+        return self.db.execute(stmt).scalar_one()
 
 
 class SuggestionRepository(TenantScopedRepository):

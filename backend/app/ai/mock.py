@@ -23,15 +23,17 @@ class MockProvider(AIProvider):
         response_json: str | None = None,
         *,
         fail_with: str | None = None,
+        fail_code: str = "provider_error",
         transmits_phi: bool = False,
     ) -> None:
         self._response = response_json if response_json is not None else _EMPTY_OUTPUT
         self._fail_with = fail_with
+        self._fail_code = fail_code
         self.transmits_phi = transmits_phi
 
     def complete(self, request: ProviderRequest) -> ProviderResponse:
         if self._fail_with is not None:
-            raise ProviderError(self._fail_with, code="provider_error")
+            raise ProviderError(self._fail_with, code=self._fail_code)
         return ProviderResponse(
             content=self._response,
             model="mock-model",

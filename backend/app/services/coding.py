@@ -1,16 +1,19 @@
-"""Structured coding workflow (Phase 2).
+"""Structured coding workflow with asynchronous job processing (Phase 4).
 
-The note is treated strictly as untrusted data. The model returns candidate
-suggestions only; deterministic evidence validation, code-set validation, and
-human review are separate and never conflated with model output. Expected
-provider/parse failures are persisted as a *failed* job (returned, not raised).
+The database is the authoritative source of job state and results. Enqueueing
+creates a durable ``queued`` job and publishes only its id to the broker; the
+worker re-fetches and verifies the job/encounter from the database before
+processing. Processing is idempotent under duplicate delivery via an atomic
+``queued -> running`` claim. No clinical content is placed in task arguments.
 """
 import json
 import time
 import uuid
-from datetime import date
+from datetime import date, timedelta
+from typing import Callable
 
 from pydantic import ValidationError
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from ..ai import get_provider
@@ -19,14 +22,33 @@ from ..ai.prompts import SYSTEM_PROMPT, build_user_prompt
 from ..ai.quality import validate_evidence
 from ..ai.schemas import PROMPT_VERSION, SCHEMA_VERSION, CodingOutput
 from ..core.config import get_settings
-from ..core.errors import AiDisabledError, BadRequestError, NotFoundError, PhiNotApprovedError, ProviderError
+from ..core.errors import (
+    AiDisabledError,
+    BadRequestError,
+    NotFoundError,
+    PhiNotApprovedError,
+    ProviderError,
+    ServiceUnavailableError,
+)
 from ..core.time import utcnow
+from ..db.session import SessionLocal
 from ..models.coding_job import CodingJob
 from ..models.coding_suggestion import CodingSuggestion
 from ..repositories.coding import CodingJobRepository, SuggestionRepository
 from ..repositories.encounters import EncounterRepository
 from .audit import AuditService
 from .reference_data import latest_set_version, validate_code
+
+# Provider error codes that are transient and may be retried.
+RETRYABLE_CODES = {"provider_unavailable", "provider_timeout"}
+
+
+class RetryableCodingError(Exception):
+    """Raised for transient failures that should be retried with backoff."""
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 def _check_gate(settings, provider: AIProvider) -> None:
@@ -127,76 +149,35 @@ def _persist_suggestions(
         add_evidence(row.id, suggestion.evidence)
 
 
-def _mark_failed(
-    *,
-    db: Session,
-    job: CodingJob,
-    job_repo: CodingJobRepository,
-    provider: AIProvider,
-    code_set_version: str | None,
-    request_id: str,
-    started: float,
-    error_code: str,
-    organization_id: str,
-    actor_user_id: str,
-    encounter_id: str,
-    ip_address: str | None,
-    user_agent: str | None,
-) -> None:
-    job.status = "failed"
-    job.error_code = error_code
-    job.completed_at = utcnow()
-    job_repo.add_attempt(
-        job_id=job.id,
-        provider_name=provider.name,
-        model_name=provider.model or provider.name,
-        prompt_version=PROMPT_VERSION,
-        schema_version=SCHEMA_VERSION,
-        code_set_version=code_set_version,
-        request_id=request_id,
-        status="failed",
-        latency_ms=int((time.monotonic() - started) * 1000),
-        error_code=error_code,
-    )
-    AuditService.append(
-        db,
-        organization_id=organization_id,
-        actor_user_id=actor_user_id,
-        action="coding.failed",
-        resource_type="coding_job",
-        resource_id=job.id,
-        ip_address=ip_address,
-        user_agent=user_agent,
-        metadata={"encounter_id": encounter_id, "error_code": error_code},
-    )
+def _default_publisher(job_id: str) -> None:
+    from ..tasks.coding import process_coding_job_task
+
+    process_coding_job_task.delay(job_id)
 
 
-def submit_coding(
+def enqueue_coding_job(
     db: Session,
     *,
     organization_id: str,
     actor_user_id: str,
     encounter_id: str,
     client_request_id: str | None = None,
-    provider: AIProvider | None = None,
     ip_address: str | None = None,
     user_agent: str | None = None,
+    publisher: Callable[[str], None] | None = None,
 ) -> CodingJob:
-    """Run the coding workflow synchronously and return the (completed/failed) job.
+    """Durably record a ``queued`` job and publish it; return the job.
 
-    Idempotency: when ``client_request_id`` is provided and a job already exists for
-    it, that job is returned without re-running or re-auditing. Expected provider or
-    output-parse failures mark the job ``failed`` and return it; the PHI/gate and
-    input errors are raised before any job exists.
+    The job is committed before publication so a crash between commit and publish
+    leaves a recoverable ``queued`` job. If publication fails (broker down), the
+    job is marked ``failed`` and a 503 is raised — never a false success.
     """
     settings = get_settings()
-    provider = provider or get_provider()
-    _check_gate(settings, provider)
+    _check_gate(settings, get_provider())
 
     encounter_repo = EncounterRepository(db, organization_id)
-    encounter = encounter_repo.get(encounter_id)
-    document = encounter_repo.get_document(encounter_id)
-    if document is None:
+    encounter_repo.get(encounter_id)  # tenant-scoped lookup
+    if encounter_repo.get_document(encounter_id) is None:
         raise BadRequestError("Encounter has no source note", code="note_required")
 
     job_repo = CodingJobRepository(db, organization_id)
@@ -208,8 +189,64 @@ def submit_coding(
     job = job_repo.create(encounter_id=encounter_id, client_request_id=client_request_id, created_by=actor_user_id)
     job.schema_version = SCHEMA_VERSION
     job.prompt_version = PROMPT_VERSION
-    job.status = "running"
-    db.flush()
+    job.status = "queued"
+    AuditService.append(
+        db,
+        organization_id=organization_id,
+        actor_user_id=actor_user_id,
+        action="coding.queued",
+        resource_type="coding_job",
+        resource_id=job.id,
+        ip_address=ip_address,
+        user_agent=user_agent,
+        metadata={"encounter_id": encounter_id},
+    )
+    db.commit()
+
+    try:
+        (publisher or _default_publisher)(job.id)
+    except Exception:
+        mark_job_failed(job.id, "queue_unavailable")
+        raise ServiceUnavailableError("Coding queue is unavailable", code="queue_unavailable") from None
+    return job
+
+
+def _claim_job(db: Session, job_id: str) -> CodingJob | None:
+    """Atomically transition ``queued -> running``; return None if not claimable."""
+    result = db.execute(
+        update(CodingJob)
+        .where(CodingJob.id == job_id, CodingJob.status == "queued")
+        .values(status="running", started_at=utcnow())
+    )
+    if result.rowcount == 0:
+        return None
+    db.commit()
+    return db.get(CodingJob, job_id)
+
+
+def process_coding_job(job_id: str, attempt_number: int = 1) -> CodingJob | None:
+    """Process one attempt of a coding job (the worker's entrypoint).
+
+    Idempotent: a job that is not ``queued`` is skipped, so duplicate delivery or
+    a delayed worker cannot create duplicate suggestions or review history.
+    """
+    db = SessionLocal()
+    try:
+        job = _claim_job(db, job_id)
+        if job is None:
+            return None
+        return _run_workflow(db, job, attempt_number)
+    finally:
+        db.close()
+
+
+def _run_workflow(db: Session, job: CodingJob, attempt_number: int) -> CodingJob:
+    settings = get_settings()
+    provider = get_provider()
+    job_repo = CodingJobRepository(db, job.organization_id)
+    encounter_repo = EncounterRepository(db, job.organization_id)
+    encounter = encounter_repo.get(job.encounter_id)
+    document = encounter_repo.get_document(job.encounter_id)
 
     context_parts = []
     if encounter.encounter_type:
@@ -222,7 +259,25 @@ def submit_coding(
 
     request_id = str(uuid.uuid4())
     started = time.monotonic()
+    started_at = utcnow()
     code_set_version: str | None = None
+
+    def record_attempt(status: str, error_code: str | None = None, **extra) -> None:
+        job_repo.add_attempt(
+            job_id=job.id,
+            attempt_number=attempt_number,
+            started_at=started_at,
+            provider_name=provider.name,
+            model_name=provider.model or provider.name,
+            prompt_version=PROMPT_VERSION,
+            schema_version=SCHEMA_VERSION,
+            code_set_version=code_set_version,
+            request_id=request_id,
+            status=status,
+            latency_ms=int((time.monotonic() - started) * 1000),
+            error_code=error_code,
+            **extra,
+        )
 
     try:
         messages = [
@@ -245,8 +300,6 @@ def submit_coding(
                 request_id=request_id,
             )
         )
-        latency_ms = int((time.monotonic() - started) * 1000)
-
         output = parse_output(response.content)
         output = validate_evidence(document.content, output)
 
@@ -257,8 +310,8 @@ def submit_coding(
         )
         _persist_suggestions(
             db,
-            organization_id=organization_id,
-            encounter_id=encounter_id,
+            organization_id=job.organization_id,
+            encounter_id=job.encounter_id,
             job_id=job.id,
             output=output,
             dos=encounter.date_of_service,
@@ -269,66 +322,107 @@ def submit_coding(
         job.missing_documentation_json = json.dumps(output.missing_documentation)
         job.contradictions_json = json.dumps(output.contradictions)
         job.completed_at = utcnow()
-        job_repo.add_attempt(
-            job_id=job.id,
-            provider_name=provider.name,
-            model_name=response.model,
-            prompt_version=PROMPT_VERSION,
-            schema_version=SCHEMA_VERSION,
-            code_set_version=code_set_version,
-            request_id=request_id,
-            status="success",
-            latency_ms=latency_ms,
+        record_attempt(
+            "success",
             prompt_tokens=response.usage.prompt_tokens,
             completion_tokens=response.usage.completion_tokens,
             total_tokens=response.usage.total_tokens,
         )
         AuditService.append(
             db,
-            organization_id=organization_id,
-            actor_user_id=actor_user_id,
+            organization_id=job.organization_id,
+            actor_user_id=job.created_by,
             action="coding.completed",
             resource_type="coding_job",
             resource_id=job.id,
-            ip_address=ip_address,
-            user_agent=user_agent,
-            metadata={"encounter_id": encounter_id, "provider": provider.name, "model": response.model},
+            metadata={"encounter_id": job.encounter_id, "provider": provider.name, "model": response.model},
         )
-    except ProviderError as exc:
-        _mark_failed(
-            db=db,
-            job=job,
-            job_repo=job_repo,
-            provider=provider,
-            code_set_version=code_set_version,
-            request_id=request_id,
-            started=started,
-            error_code=exc.code,
-            organization_id=organization_id,
-            actor_user_id=actor_user_id,
-            encounter_id=encounter_id,
-            ip_address=ip_address,
-            user_agent=user_agent,
-        )
+        db.commit()
         return job
-    except Exception:
-        _mark_failed(
-            db=db,
-            job=job,
-            job_repo=job_repo,
-            provider=provider,
-            code_set_version=code_set_version,
-            request_id=request_id,
-            started=started,
-            error_code="coding_failed",
-            organization_id=organization_id,
-            actor_user_id=actor_user_id,
-            encounter_id=encounter_id,
-            ip_address=ip_address,
-            user_agent=user_agent,
+    except ProviderError as exc:
+        record_attempt("failed", error_code=exc.code)
+        if exc.code in RETRYABLE_CODES:
+            job.status = "queued"
+            job.started_at = None
+            db.commit()
+            raise RetryableCodingError(exc.code, "Transient provider failure") from exc
+        job.status = "failed"
+        job.error_code = exc.code
+        job.completed_at = utcnow()
+        AuditService.append(
+            db,
+            organization_id=job.organization_id,
+            actor_user_id=job.created_by,
+            action="coding.failed",
+            resource_type="coding_job",
+            resource_id=job.id,
+            metadata={"encounter_id": job.encounter_id, "error_code": exc.code},
         )
-        raise
-    return job
+        db.commit()
+        return job
+    except Exception:  # noqa: BLE001 - unexpected failures fail the job, never retry-storm
+        record_attempt("failed", error_code="coding_failed")
+        job.status = "failed"
+        job.error_code = "coding_failed"
+        job.completed_at = utcnow()
+        AuditService.append(
+            db,
+            organization_id=job.organization_id,
+            actor_user_id=job.created_by,
+            action="coding.failed",
+            resource_type="coding_job",
+            resource_id=job.id,
+            metadata={"encounter_id": job.encounter_id, "error_code": "coding_failed"},
+        )
+        db.commit()
+        return job
+
+
+def mark_job_failed(job_id: str, error_code: str) -> None:
+    """Mark a job failed using a fresh session (safe from worker or request)."""
+    db = SessionLocal()
+    try:
+        db.execute(
+            update(CodingJob)
+            .where(CodingJob.id == job_id)
+            .values(status="failed", error_code=error_code, completed_at=utcnow())
+        )
+        db.commit()
+    finally:
+        db.close()
+
+
+def recover_stale_jobs(
+    *, before=None, publisher: Callable[[str], None] | None = None
+) -> dict:
+    """Re-queue stale ``running`` jobs and re-publish stale ``queued`` jobs.
+
+    Re-publishing a ``queued`` job is safe under at-least-once delivery because the
+    atomic claim ensures only one worker processes it. Returns counts.
+    """
+    db = SessionLocal()
+    try:
+        cutoff = before or (utcnow() - timedelta(seconds=get_settings().coding_stale_after_seconds))
+        requeued = db.execute(
+            update(CodingJob)
+            .where(CodingJob.status == "running", CodingJob.started_at < cutoff)
+            .values(status="queued", started_at=None)
+        ).rowcount
+        stale_queued = db.execute(
+            select(CodingJob.id).where(CodingJob.status == "queued", CodingJob.created_at < cutoff)
+        ).scalars().all()
+        db.commit()
+
+        republished = 0
+        for job_id in stale_queued:
+            try:
+                (publisher or _default_publisher)(job_id)
+                republished += 1
+            except Exception:
+                break  # broker unavailable; stop republishing
+        return {"requeued": requeued, "republished": republished}
+    finally:
+        db.close()
 
 
 def review_suggestion(

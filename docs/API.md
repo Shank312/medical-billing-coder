@@ -126,10 +126,15 @@ Returns `201` with the encounter. The note is stored separately from any AI outp
 Invalid `sort`, `order`, or `status` return `400` with `invalid_sort`/`invalid_order`/
 `invalid_status`. Detail includes the note, suggestions, and review history.
 
-### Submit for coding — `POST /api/v1/encounters/{id}/code`
-Runs the coding workflow synchronously and returns a `CodingJobDetailOut`. Pass an
-`Idempotency-Key` header to deduplicate retries. On a provider/output failure the
-job is returned with `status: "failed"` and a sanitized `error_code`.
+### Submit for coding — `POST /api/v1/encounters/{id}/code` → `202 Accepted`
+Enqueues the coding job asynchronously and returns the persisted `CodingJobDetailOut`
+with `status: "queued"`. Pass an `Idempotency-Key` header to deduplicate retries.
+Poll `GET /coding-jobs/{id}` for completion. A broker/queue failure returns
+`503 queue_unavailable` and marks the job `failed` — never a false success.
+
+### List jobs — `GET /api/v1/coding-jobs`
+Returns the authenticated organization's jobs (paginated via `limit`/`offset`), with
+an optional `status` filter (`queued`/`running`/`completed`/`failed`).
 
 ### Get job — `GET /api/v1/coding-jobs/{id}`
 Returns job status plus its suggestions (with evidence, validation status, review status).
@@ -153,7 +158,7 @@ Returns job status plus its suggestions (with evidence, validation status, revie
 `last_owner`, `already_member`, `invalid_role`, `ai_disabled`, `phi_not_approved`,
 `provider_error`, `invalid_model_output`, `reference_data_unavailable`,
 `note_required`, `corrected_code_required`, `invalid_decision`, `code_set_exists`,
-`invalid_code_type`.
+`invalid_code_type`, `queue_unavailable`, `retry_exhausted`, `invalid_status`.
 
 ### Phase 3 additions
 

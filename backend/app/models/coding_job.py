@@ -31,6 +31,7 @@ class CodingJob(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     created_by: Mapped[str | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
+    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
@@ -40,6 +41,8 @@ class CodingAttempt(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     job_id: Mapped[str] = mapped_column(
         ForeignKey("coding_jobs.id", ondelete="CASCADE"), index=True, nullable=False
     )
+    attempt_number: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     provider_name: Mapped[str] = mapped_column(String(50), nullable=False)
     model_name: Mapped[str] = mapped_column(String(120), nullable=False)
     prompt_version: Mapped[str] = mapped_column(String(30), nullable=False)

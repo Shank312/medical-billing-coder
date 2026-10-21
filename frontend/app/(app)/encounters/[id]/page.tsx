@@ -76,6 +76,8 @@ export default function EncounterWorkspacePage() {
   const [reviewBusy, setReviewBusy] = useState<string | null>(null);
   const [activeSuggestion, setActiveSuggestion] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [polling, setPolling] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -93,6 +95,38 @@ export default function EncounterWorkspacePage() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    if (!jobId || !polling) return;
+    const currentJobId = jobId;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    async function poll() {
+      try {
+        const job = await api.getCodingJob(currentJobId);
+        if (cancelled) return;
+        if (job.status === "completed") {
+          setPolling(false);
+          setNotice("Coding completed.");
+          await load();
+        } else if (job.status === "failed") {
+          setPolling(false);
+          setError(job.error_code ? `Coding failed (${job.error_code}).` : "Coding failed.");
+        } else {
+          timer = setTimeout(poll, 2000);
+        }
+      } catch {
+        if (!cancelled) timer = setTimeout(poll, 3000);
+      }
+    }
+
+    poll();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [jobId, polling, load]);
+
   const canReview = hasRole(...REVIEW_ROLES);
   const canSubmit = hasRole(...WRITE_ROLES);
 
@@ -109,9 +143,10 @@ export default function EncounterWorkspacePage() {
     setError(null);
     setNotice(null);
     try {
-      await api.submitCoding(id);
-      setNotice("Coding completed.");
-      await load();
+      const job = await api.submitCoding(id);
+      setJobId(job.id);
+      setPolling(true);
+      setNotice("Coding queued.");
     } catch (err) {
       setError(err instanceof ApiClientError ? err.message : "The coding request failed.");
     } finally {
@@ -172,8 +207,8 @@ export default function EncounterWorkspacePage() {
           <Badge variant={coding.variant}>{coding.label}</Badge>
           <Badge variant={review.variant}>{review.label}</Badge>
           {canSubmit ? (
-            <Button loading={submitting} onClick={handleSubmitCoding}>
-              {detail.suggestions.length > 0 ? "Re-run coding" : "Run coding"}
+            <Button loading={submitting || polling} disabled={polling} onClick={handleSubmitCoding}>
+              {polling ? "Coding in progress…" : detail.suggestions.length > 0 ? "Re-run coding" : "Run coding"}
             </Button>
           ) : null}
         </div>
@@ -181,6 +216,15 @@ export default function EncounterWorkspacePage() {
 
       {error ? <Alert variant="error">{error}</Alert> : null}
       {notice ? <Alert variant="info">{notice}</Alert> : null}
+      {polling ? (
+        <div
+          className="flex items-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-800"
+          role="status"
+        >
+          <Spinner className="h-4 w-4 text-brand-600" />
+          Coding in progress…
+        </div>
+      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section aria-label="Clinical documentation" className="min-w-0">

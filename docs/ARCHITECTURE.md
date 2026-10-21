@@ -124,3 +124,19 @@ The workspace renders the source note as plain text (never HTML), highlights
 evidence by exact character offsets (invalid offsets are ignored defensively), and
 never presents model confidence as a calibrated probability or an unavailable
 reference dataset as validated.
+
+## Asynchronous coding jobs (Phase 4)
+
+Coding runs in a Celery worker with Redis as the broker; the database remains the
+authoritative source of job state and results.
+
+- `app/celery_app.py` — Celery application (broker, eager mode, ack/timeout settings).
+- `app/tasks/coding.py` — `coding.process_job` task (acks-late, bounded backoff retries).
+- `services/coding.py` — `enqueue_coding_job` (durable ``queued`` job + publish) and
+  `process_coding_job` (atomic ``queued -> running`` claim, idempotent on duplicate
+  delivery), plus `recover_stale_jobs` for crash recovery.
+
+Delivery is at-least-once with idempotent effects: only the job id is published
+(never the note), workers re-fetch and verify the job/encounter from the database,
+and the atomic claim prevents concurrent duplicate processing. The API enqueues and
+returns `202`; the frontend polls `GET /coding-jobs/{id}` until a terminal state.

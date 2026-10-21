@@ -100,7 +100,7 @@ def get_encounter(
     return encounter_detail_out(db, auth.organization_id, encounter)
 
 
-@router.post("/{encounter_id}/code", response_model=CodingJobDetailOut, dependencies=[_default_rate_limit])
+@router.post("/{encounter_id}/code", response_model=CodingJobDetailOut, status_code=202, dependencies=[_default_rate_limit])
 def submit_for_coding(
     encounter_id: str,
     request: Request,
@@ -111,20 +111,15 @@ def submit_for_coding(
     client_request_id = request.headers.get("Idempotency-Key")
     from ...services import coding as coding_service
 
-    try:
-        job = coding_service.submit_coding(
-            db,
-            organization_id=auth.organization_id,
-            actor_user_id=auth.user_id,
-            encounter_id=encounter_id,
-            client_request_id=client_request_id,
-            ip_address=ip,
-            user_agent=ua,
-        )
-    except Exception:
-        db.rollback()
-        raise
-    db.commit()
+    job = coding_service.enqueue_coding_job(
+        db,
+        organization_id=auth.organization_id,
+        actor_user_id=auth.user_id,
+        encounter_id=encounter_id,
+        client_request_id=client_request_id,
+        ip_address=ip,
+        user_agent=ua,
+    )
     return job_detail_out(db, auth.organization_id, job)
 
 

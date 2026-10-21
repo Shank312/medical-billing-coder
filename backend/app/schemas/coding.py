@@ -72,6 +72,13 @@ class CodingJobDetailOut(CodingJobOut):
     suggestions: list[SuggestionOut] = []
 
 
+class CodingJobListOut(BaseModel):
+    items: list[CodingJobOut]
+    total: int
+    limit: int
+    offset: int
+
+
 class ReviewRequest(BaseModel):
     decision: str = Field(..., pattern="^(approved|rejected|corrected)$")
     corrected_code: str | None = Field(default=None, max_length=20)

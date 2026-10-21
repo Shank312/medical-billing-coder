@@ -96,6 +96,14 @@ def _login_as(client, email, org_id):
     return response.json()["access_token"]
 
 
+def _submit_and_wait(client, token, encounter_id, headers=None):
+    """Submit coding and return the terminal job (eager Celery processes synchronously)."""
+    response = client.post(f"/api/v1/encounters/{encounter_id}/code", headers=headers or _auth(token))
+    assert response.status_code == 202, response.text
+    job_id = response.json()["id"]
+    return client.get(f"/api/v1/coding-jobs/{job_id}", headers=_auth(token)).json()
+
+
 def test_encounter_and_coding_flow(client, register, monkeypatch):
     _patch_provider(monkeypatch)
     owner = register("owner@flow.example.com", "Flow Org")
@@ -104,7 +112,9 @@ def test_encounter_and_coding_flow(client, register, monkeypatch):
     _import(client, token, "cpt", [{"code": "90837", "description": "Psychotherapy 60 min"}])
 
     encounter = _create_encounter(client, token)
-    job = client.post(f"/api/v1/encounters/{encounter['id']}/code", headers=_auth(token)).json()
+    submitted = client.post(f"/api/v1/encounters/{encounter['id']}/code", headers=_auth(token))
+    assert submitted.status_code == 202
+    job = _submit_and_wait(client, token, encounter["id"])
     assert job["status"] == "completed"
     assert job["schema_version"] == "1.0.0"
 
@@ -130,8 +140,8 @@ def test_idempotency(client, register, monkeypatch):
     headers = {**_auth(token), "Idempotency-Key": "req-123"}
     first = client.post(f"/api/v1/encounters/{encounter['id']}/code", headers=headers)
     second = client.post(f"/api/v1/encounters/{encounter['id']}/code", headers=headers)
-    assert first.status_code == 200
-    assert second.status_code == 200
+    assert first.status_code == 202
+    assert second.status_code == 202
     assert first.json()["id"] == second.json()["id"]
 
 
@@ -167,7 +177,7 @@ def test_rbac_review(client, register, monkeypatch):
     coder_token = _login_as(client, "coder@rbac.example.com", org_id)
 
     encounter = _create_encounter(client, token)
-    job = client.post(f"/api/v1/encounters/{encounter['id']}/code", headers=_auth(token)).json()
+    job = _submit_and_wait(client, token, encounter["id"])
     suggestion_id = job["suggestions"][0]["id"]
 
     denied = client.post(
@@ -277,7 +287,7 @@ def test_provider_failure_produces_failed_job(client, register, monkeypatch):
     token = owner["access_token"]
     encounter = _create_encounter(client, token)
 
-    job = client.post(f"/api/v1/encounters/{encounter['id']}/code", headers=_auth(token)).json()
+    job = _submit_and_wait(client, token, encounter["id"])
     assert job["status"] == "failed"
     assert job["error_code"] == "provider_error"
 
@@ -287,7 +297,7 @@ def test_audit_events_and_redaction(client, register, monkeypatch):
     owner = register("owner@audit.example.com", "Audit Org")
     token = owner["access_token"]
     encounter = _create_encounter(client, token)
-    job = client.post(f"/api/v1/encounters/{encounter['id']}/code", headers=_auth(token)).json()
+    job = _submit_and_wait(client, token, encounter["id"])
     suggestion_id = job["suggestions"][0]["id"]
     client.post(
         f"/api/v1/encounters/{encounter['id']}/suggestions/{suggestion_id}/review",
@@ -320,7 +330,7 @@ def test_encounter_detail_exposes_note_and_status(client, register, monkeypatch)
     assert detail["note"] == NOTE
     assert detail["coding_status"] is None
 
-    job = client.post(f"/api/v1/encounters/{encounter['id']}/code", headers=_auth(token)).json()
+    job = _submit_and_wait(client, token, encounter["id"])
     assert job["missing_documentation"] == ["Exact start/stop times not documented"]
     assert job["contradictions"] == []
 

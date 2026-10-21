@@ -58,6 +58,14 @@ class Settings(BaseSettings):
     deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_model: str = "deepseek-chat"
 
+    # Background coding jobs (Celery + Redis).
+    celery_broker_url: str = "redis://localhost:6379/0"
+    celery_task_always_eager: bool = False
+    coding_max_retries: int = 3
+    coding_task_timeout_seconds: int = 300
+    coding_retry_backoff_base: float = 2.0
+    coding_stale_after_seconds: int = 600
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def _split_cors(cls, value: object) -> object:

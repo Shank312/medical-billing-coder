@@ -33,8 +33,31 @@ services:
       COOKIE_SECURE: "false"
       CORS_ORIGINS: http://localhost:3000
       RATE_LIMIT_ENABLED: "true"
+      CELERY_BROKER_URL: redis://redis:6379/0
+      AI_ENABLED: ${AI_ENABLED:-false}
+      AI_PROVIDER: ${AI_PROVIDER:-mock}
+      AI_PHI_APPROVED: ${AI_PHI_APPROVED:-false}
     ports:
       - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  worker:
+    build: ../backend
+    command: celery -A app.celery_app.celery_app worker --loglevel=info --concurrency=2
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-mbc}:${POSTGRES_PASSWORD:-change_me}@db:5432/${POSTGRES_DB:-mbc}
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-change-me-please}
+      AUDIT_HMAC_KEY: ${AUDIT_HMAC_KEY:-dev-hmac-change-me-please}
+      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:-}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      AI_ENABLED: ${AI_ENABLED:-false}
+      AI_PROVIDER: ${AI_PROVIDER:-mock}
+      AI_PHI_APPROVED: ${AI_PHI_APPROVED:-false}
     depends_on:
       db:
         condition: service_healthy

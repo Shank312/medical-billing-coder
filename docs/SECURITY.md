@@ -131,3 +131,16 @@ scanning integration point before any file is stored or processed.
 - No third-party analytics, tracking, or external content services are included.
 - The frontend never calls DeepSeek or any provider directly; all coding goes
   through the backend's gated API.
+
+## Background workers (Phase 4)
+
+- Task arguments carry only the **job id**, never clinical note text, evidence, or
+  tenant context — the worker re-fetches and verifies the job/encounter from the
+  database (tenant-scoped) before processing.
+- The database is authoritative for job state and results; Redis is broker-only and
+  not a durable result store.
+- AI and PHI approval gates are re-checked in the worker (same defaults disabled).
+- Retries are bounded (exponential backoff) and exhausted to a stable `failed`
+  state; no hidden chain-of-thought or raw provider responses are persisted.
+- A broker failure marks the job `failed` and returns `503` — never a false success.
+- Redis must not be exposed publicly; credentials come from environment configuration.

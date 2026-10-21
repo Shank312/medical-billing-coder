@@ -26,6 +26,9 @@ os.environ["AI_ENABLED"] = "true"
 os.environ["AI_PROVIDER"] = "mock"
 os.environ["AI_PHI_APPROVED"] = "false"
 
+# Celery: run tasks eagerly in-process for offline tests (no Redis).
+os.environ["CELERY_TASK_ALWAYS_EAGER"] = "true"
+
 from cryptography.fernet import Fernet  # noqa: E402
 
 os.environ["MFA_ENCRYPTION_KEY"] = Fernet.generate_key().decode()

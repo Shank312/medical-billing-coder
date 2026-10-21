@@ -131,8 +131,9 @@ docker compose -f infra/docker-compose.yml --env-file .env up --build
 ```
 
 - Backend: <http://localhost:8000> (runs `alembic upgrade head` on start)
+- Worker: Celery (coding jobs) · Redis broker: `localhost:6379`
 - Frontend: <http://localhost:3000>
-- PostgreSQL: `localhost:5432` · Redis: `localhost:6379`
+- PostgreSQL: `localhost:5432`
 
 ---
 
