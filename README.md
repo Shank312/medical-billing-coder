@@ -3,13 +3,11 @@
 Secure, evidence-linked medical coding review for US medical practices, behavioral
 health providers, billing teams, and multi-provider clinics.
 
-**Phase 2 (current):** adds a provider-agnostic AI coding engine (DeepSeek + a
-local mock behind one interface, disabled by default with a PHI approval gate),
-tenant-scoped encounters/coding jobs/suggestions/evidence, a structured coding
-workflow with exact-evidence validation and hallucination rejection, and
-deterministic ICD-10/CPT/HCPCS reference validation — on top of the Phase 1 secure
-core (tenant isolation, RBAC, refresh rotation + reuse detection, TOTP MFA,
-hash-chained audit, redacted logging, rate limiting).
+**Phase 3 (current):** a premium, evidence-first coding workspace — split-screen
+clinical note + coding review with exact evidence highlighting, an encounters
+dashboard (search/filter/pagination), create-encounter form, and the human-review
+workflow (approve/reject/correct) — on top of the Phase 2 AI coding engine and the
+Phase 1 secure core.
 
 > **Compliance note:** this project is designed to *support* HIPAA-regulated
 > workloads but is **not** certified HIPAA-compliant. No compliance claim is made

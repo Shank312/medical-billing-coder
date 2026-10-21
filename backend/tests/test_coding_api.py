@@ -308,3 +308,38 @@ def test_audit_events_and_redaction(client, register, monkeypatch):
             assert "psychotherapy" not in metadata
     finally:
         db.close()
+
+
+def test_encounter_detail_exposes_note_and_status(client, register, monkeypatch):
+    _patch_provider(monkeypatch)
+    owner = register("owner@note.example.com", "Note Org")
+    token = owner["access_token"]
+    encounter = _create_encounter(client, token)
+
+    detail = client.get(f"/api/v1/encounters/{encounter['id']}", headers=_auth(token)).json()
+    assert detail["note"] == NOTE
+    assert detail["coding_status"] is None
+
+    job = client.post(f"/api/v1/encounters/{encounter['id']}/code", headers=_auth(token)).json()
+    assert job["missing_documentation"] == ["Exact start/stop times not documented"]
+    assert job["contradictions"] == []
+
+    detail = client.get(f"/api/v1/encounters/{encounter['id']}", headers=_auth(token)).json()
+    assert detail["coding_status"] == "completed"
+    assert detail["missing_documentation"] == ["Exact start/stop times not documented"]
+    assert detail["review_status"] == "pending"
+
+    for suggestion in detail["suggestions"]:
+        client.post(
+            f"/api/v1/encounters/{encounter['id']}/suggestions/{suggestion['id']}/review",
+            json={"decision": "approved"},
+            headers=_auth(token),
+        )
+
+    detail = client.get(f"/api/v1/encounters/{encounter['id']}", headers=_auth(token)).json()
+    assert detail["review_status"] == "reviewed"
+
+    listing = client.get("/api/v1/encounters", headers=_auth(token)).json()
+    item = next(e for e in listing["items"] if e["id"] == encounter["id"])
+    assert item["coding_status"] == "completed"
+    assert item["review_status"] == "reviewed"

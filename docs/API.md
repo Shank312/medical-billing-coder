@@ -146,3 +146,11 @@ Returns job status plus its suggestions (with evidence, validation status, revie
 `provider_error`, `invalid_model_output`, `reference_data_unavailable`,
 `note_required`, `corrected_code_required`, `invalid_decision`, `code_set_exists`,
 `invalid_code_type`.
+
+### Phase 3 additions
+
+`GET /api/v1/encounters/{id}` now also returns the source note and workflow summary:
+`note`, `coding_status` (latest job status), `review_status` (`pending`/`reviewed`),
+and `missing_documentation` / `contradictions` (from the latest completed job).
+`GET /api/v1/encounters` items include `coding_status` and `review_status` (but not
+the note text). `CodingJobOut` includes `missing_documentation` and `contradictions`.

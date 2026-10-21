@@ -13,11 +13,16 @@ from ...schemas.coding import (
     EncounterDetailOut,
     EncounterListOut,
     EncounterOut,
-    ReviewDecisionOut,
     ReviewRequest,
     SuggestionOut,
 )
-from ...services.serializers import job_detail_out, suggestion_out
+from ...services.serializers import (
+    encounter_detail_out,
+    encounter_out,
+    encounter_summary,
+    job_detail_out,
+    suggestion_out,
+)
 from ..deps import AuthContext, get_auth_context, request_info, require_roles
 
 router = APIRouter(prefix="/encounters", tags=["encounters"])
@@ -53,7 +58,7 @@ def create_encounter(
     except Exception:
         db.rollback()
         raise
-    return EncounterOut.model_validate(encounter)
+    return encounter_out(encounter)
 
 
 @router.get("", response_model=EncounterListOut, dependencies=[_default_rate_limit])
@@ -67,7 +72,7 @@ def list_encounters(
     items = repo.list(limit=limit, offset=offset)
     total = repo.count()
     return EncounterListOut(
-        items=[EncounterOut.model_validate(e) for e in items], total=total, limit=limit, offset=offset
+        items=[encounter_summary(db, e) for e in items], total=total, limit=limit, offset=offset
     )
 
 
@@ -78,13 +83,7 @@ def get_encounter(
     db: Session = Depends(get_db_session),
 ):
     encounter = EncounterRepository(db, auth.organization_id).get(encounter_id)
-    suggestion_repo = SuggestionRepository(db, auth.organization_id)
-    suggestions = suggestion_repo.list_for_encounter(encounter_id)
-    suggestion_outs = [suggestion_out(s, suggestion_repo.list_evidence(s.id)) for s in suggestions]
-    review_outs = [ReviewDecisionOut.model_validate(r) for r in suggestion_repo.list_reviews(encounter_id)]
-
-    base = EncounterOut.model_validate(encounter).model_dump()
-    return EncounterDetailOut(**base, suggestions=suggestion_outs, reviews=review_outs)
+    return encounter_detail_out(db, auth.organization_id, encounter)
 
 
 @router.post("/{encounter_id}/code", response_model=CodingJobDetailOut, dependencies=[_default_rate_limit])

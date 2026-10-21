@@ -36,3 +36,82 @@ export interface ApiErrorBody {
     request_id: string | null;
   };
 }
+
+// --- Coding domain (Phase 2/3) ---
+
+export interface Encounter {
+  id: string;
+  date_of_service: string;
+  encounter_type: string | null;
+  place_of_service: string | null;
+  patient_reference: string | null;
+  payer_context: string | null;
+  status: string;
+  created_at: string;
+  coding_status: string | null;
+  review_status: string | null;
+}
+
+export interface EncounterList {
+  items: Encounter[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface EvidenceSpan {
+  quote: string;
+  start_offset: number;
+  end_offset: number;
+}
+
+export interface Suggestion {
+  id: string;
+  code_type: string;
+  code: string;
+  description: string | null;
+  confidence: number | null;
+  rationale: string | null;
+  applies_to: string | null;
+  validation_status: string | null;
+  review_status: string;
+  corrected_code: string | null;
+  flags: string[];
+  evidence: EvidenceSpan[];
+}
+
+export interface CodingJob {
+  id: string;
+  encounter_id: string;
+  status: string;
+  error_code: string | null;
+  code_set_version: string | null;
+  schema_version: string | null;
+  prompt_version: string | null;
+  created_at: string;
+  completed_at: string | null;
+  missing_documentation: string[];
+  contradictions: string[];
+}
+
+export interface CodingJobDetail extends CodingJob {
+  suggestions: Suggestion[];
+}
+
+export interface ReviewDecision {
+  id: string;
+  decision: string;
+  corrected_code: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+export interface EncounterDetail extends Encounter {
+  note: string | null;
+  missing_documentation: string[];
+  contradictions: string[];
+  suggestions: Suggestion[];
+  reviews: ReviewDecision[];
+}
+
+export type ReviewDecisionType = "approved" | "rejected" | "corrected";

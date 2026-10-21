@@ -144,3 +144,9 @@ All tenant-scoped tables carry `organization_id` (or reach it via `encounters`).
 
 ### `code_reference_sets` + `code_references` (global reference data)
 Sets: `code_type`, `source`, `version` (unique together), effective dates, `record_count`, `imported_by`. References: `set_id`, `code` (unique per set), `description`, effective dates, `is_billable`, metadata.
+
+### Phase 3 columns
+
+`coding_jobs.missing_documentation_json` and `coding_jobs.contradictions_json`
+(Text, nullable) persist the model output's missing-documentation and contradiction
+lists for display in the workspace (migration `c3ea3c0c5da2`).

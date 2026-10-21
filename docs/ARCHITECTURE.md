@@ -107,3 +107,20 @@ suggestions; exact-evidence validation, deterministic code-set validation, and
 human review are distinct, audited stages. Reference datasets are loaded — never
 invented — via `import_code_set`; an unloaded code type yields the explicit
 `reference_data_unavailable` status.
+
+## Frontend (Phase 3)
+
+Next.js App Router with a `(app)` route group guarded by an in-memory auth context
+(`lib/auth.tsx`) that silently refreshes on load and redirects on 401. Layout:
+
+- `app/(app)/encounters` — dashboard (list/search/filter/pagination).
+- `app/(app)/encounters/new` — create-encounter form.
+- `app/(app)/encounters/[id]` — split-screen coding workspace.
+- `components/coding/` — `NoteViewer` (exact evidence highlighting),
+  `SuggestionCard`, `ReviewControls`, `EncounterForm`, `EncounterTable`, `status`.
+- `lib/api.ts` — typed API client with a module-level token store and 401 handling.
+
+The workspace renders the source note as plain text (never HTML), highlights
+evidence by exact character offsets (invalid offsets are ignored defensively), and
+never presents model confidence as a calibrated probability or an unavailable
+reference dataset as validated.

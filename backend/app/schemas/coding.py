@@ -14,8 +14,6 @@ class EncounterCreate(BaseModel):
 
 
 class EncounterOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: str
     date_of_service: date
     encounter_type: str | None
@@ -24,6 +22,8 @@ class EncounterOut(BaseModel):
     payer_context: str | None
     status: str
     created_at: datetime
+    coding_status: str | None = None
+    review_status: str | None = None
 
 
 class EncounterListOut(BaseModel):
@@ -55,8 +55,6 @@ class SuggestionOut(BaseModel):
 
 
 class CodingJobOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: str
     encounter_id: str
     status: str
@@ -66,10 +64,12 @@ class CodingJobOut(BaseModel):
     prompt_version: str | None
     created_at: datetime
     completed_at: datetime | None
+    missing_documentation: list[str] = []
+    contradictions: list[str] = []
 
 
 class CodingJobDetailOut(CodingJobOut):
-    suggestions: list[SuggestionOut]
+    suggestions: list[SuggestionOut] = []
 
 
 class ReviewRequest(BaseModel):
@@ -89,5 +89,8 @@ class ReviewDecisionOut(BaseModel):
 
 
 class EncounterDetailOut(EncounterOut):
-    suggestions: list[SuggestionOut]
-    reviews: list[ReviewDecisionOut]
+    note: str | None = None
+    missing_documentation: list[str] = []
+    contradictions: list[str] = []
+    suggestions: list[SuggestionOut] = []
+    reviews: list[ReviewDecisionOut] = []

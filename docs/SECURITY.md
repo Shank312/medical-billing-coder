@@ -120,3 +120,14 @@ scanning integration point before any file is stored or processed.
 3. No DB-level append-only enforcement or external audit-chain export.
 4. Rate limiter is not shared across workers.
 5. No backup/restore or retention/deletion workflow yet (planned).
+
+## Frontend privacy (Phase 3)
+
+- Clinical notes and evidence are never persisted to `localStorage`, `sessionStorage`,
+  analytics, or caches; they are held only in component state for the current page.
+- Clinical note text is never placed in query parameters or browser history.
+- Note text and model output are rendered as plain text (React auto-escapes); they
+  are never interpreted as HTML.
+- No third-party analytics, tracking, or external content services are included.
+- The frontend never calls DeepSeek or any provider directly; all coding goes
+  through the backend's gated API.

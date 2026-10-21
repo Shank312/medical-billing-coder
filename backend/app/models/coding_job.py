@@ -1,7 +1,7 @@
 """Coding jobs and per-attempt model metadata."""
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..db.base import Base
@@ -26,6 +26,8 @@ class CodingJob(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     schema_version: Mapped[str | None] = mapped_column(String(30), nullable=True)
     prompt_version: Mapped[str | None] = mapped_column(String(30), nullable=True)
     error_code: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    missing_documentation_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    contradictions_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_by: Mapped[str | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )

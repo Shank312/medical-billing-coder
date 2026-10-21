@@ -266,6 +266,8 @@ def submit_coding(
 
         job.status = "completed"
         job.code_set_version = code_set_version
+        job.missing_documentation_json = json.dumps(output.missing_documentation)
+        job.contradictions_json = json.dumps(output.contradictions)
         job.completed_at = utcnow()
         job_repo.add_attempt(
             job_id=job.id,

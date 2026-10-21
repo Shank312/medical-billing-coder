@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { ApiClientError, api } from "@/lib/api";
+import { ApiClientError } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -11,23 +12,28 @@ import { Input } from "@/components/ui/Input";
 
 export function LoginForm() {
   const router = useRouter();
+  const { login, status } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.replace("/encounters");
+    }
+  }, [status, router]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setError(null);
     try {
-      await api.login(email, password);
-      router.push("/dashboard");
+      await login(email, password);
+      router.replace("/encounters");
     } catch (err) {
       setError(
-        err instanceof ApiClientError
-          ? err.message
-          : "Something went wrong. Please try again.",
+        err instanceof ApiClientError ? err.message : "Something went wrong. Please try again.",
       );
     } finally {
       setLoading(false);
@@ -68,10 +74,6 @@ export function LoginForm() {
           {loading ? "Signing in…" : "Sign in"}
         </Button>
       </form>
-
-      <p className="mt-6 text-center text-xs text-slate-400">
-        Phase 1 preview — registration and team management arrive next.
-      </p>
     </Card>
   );
 }
