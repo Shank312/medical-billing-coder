@@ -1,0 +1,51 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.deps/
+.tmp/
+*.egg-info/
+.pytest_cache/
+pytest-cache-files-*/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# --- Local tool caches ---
+.npm-cache/
+
+# --- Node / Next.js ---
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Env & secrets (never commit real credentials) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- Local databases ---
+*.db
+*.sqlite
+*.sqlite3
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# --- Build artifacts ---
+dist/
+build/
+coverage/

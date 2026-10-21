@@ -1,0 +1,23 @@
+[project]
+name = "medical-billing-coder-backend"
+version = "0.1.0"
+description = "Medical Billing Coder - FastAPI backend (Phase 1: secure platform core)"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q -p no:cacheprovider"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# Ruff catches real defects (undefined names, unused imports, syntax). Style and
+# idiom rules (isort ordering, pyupgrade, FastAPI's Depends-in-defaults) are left
+# to the team formatter and are intentionally out of scope here.
+select = ["E", "F"]
+ignore = ["E501"]

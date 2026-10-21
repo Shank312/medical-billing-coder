@@ -1,0 +1,9 @@
+.deps/
+.venv/
+__pycache__/
+*.pyc
+tests/
+.env
+*.db
+.pytest_cache/
+.ruff_cache/
