@@ -1,5 +1,4 @@
-import { buildNoteSegments, filterEncounters, formatDate, truncate } from "@/lib/utils";
-import type { Encounter } from "@/lib/types";
+import { buildNoteSegments, formatDate, truncate } from "@/lib/utils";
 
 describe("buildNoteSegments", () => {
   test("splits the note around a highlight", () => {
@@ -23,29 +22,6 @@ describe("buildNoteSegments", () => {
         { start: 2, end: 0 },
       ]),
     ).toEqual([{ text: "abc", highlighted: false }]);
-  });
-});
-
-describe("filterEncounters", () => {
-  const encounters: Encounter[] = [
-    { id: "e1", patient_reference: "MRN-1", encounter_type: "office visit", date_of_service: "2025-03-15", place_of_service: "11", payer_context: null, status: "draft", created_at: "2025-03-15T00:00:00Z", coding_status: "completed", review_status: "pending" },
-    { id: "e2", patient_reference: "MRN-2", encounter_type: "telehealth", date_of_service: "2025-04-01", place_of_service: "02", payer_context: null, status: "draft", created_at: "2025-04-01T00:00:00Z", coding_status: null, review_status: null },
-  ];
-
-  test("filters by search on patient reference", () => {
-    expect(filterEncounters(encounters, "MRN-1", "all")).toHaveLength(1);
-  });
-
-  test("filters by coded status", () => {
-    const result = filterEncounters(encounters, "", "coded");
-    expect(result).toHaveLength(1);
-    expect(result[0].patient_reference).toBe("MRN-1");
-  });
-
-  test("filters by not-coded status", () => {
-    const result = filterEncounters(encounters, "", "not-coded");
-    expect(result).toHaveLength(1);
-    expect(result[0].patient_reference).toBe("MRN-2");
   });
 });
 

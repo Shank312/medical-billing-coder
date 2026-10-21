@@ -1,12 +1,18 @@
 """Tenant-scoped encounter and source-note repository."""
 from datetime import date
 
-from sqlalchemy import func, select
+from sqlalchemy import exists, func, or_, select
 
 from ..core.errors import NotFoundError
+from ..models.coding_job import CodingJob
+from ..models.coding_suggestion import CodingSuggestion
 from ..models.encounter import Encounter
 from ..models.encounter_document import EncounterDocument
 from .base import TenantScopedRepository
+
+# Allowlisted sort fields (actual encounter columns) and workflow status filters.
+SORT_FIELDS = ("date_of_service", "created_at", "patient_reference", "encounter_type")
+STATUS_FILTERS = ("all", "coded", "pending", "not_coded")
 
 
 class EncounterRepository(TenantScopedRepository):
@@ -40,21 +46,58 @@ class EncounterRepository(TenantScopedRepository):
         self.db.flush()
         return encounter
 
-    def list(self, *, limit: int = 50, offset: int = 0) -> list[Encounter]:
-        return self.db.execute(
-            select(Encounter)
-            .where(Encounter.organization_id == self.organization_id)
-            .order_by(Encounter.created_at.desc())
-            .limit(limit)
-            .offset(offset)
-        ).scalars().all()
+    def _apply_filters(self, stmt, search: str | None, status: str):
+        """Apply tenant scoping plus search/status filters to a select statement.
 
-    def count(self) -> int:
-        return self.db.execute(
-            select(func.count())
-            .select_from(Encounter)
-            .where(Encounter.organization_id == self.organization_id)
-        ).scalar_one()
+        All filtering happens in the database; the note text and any field beyond
+        ``patient_reference``/``encounter_type`` is never searchable.
+        """
+        stmt = stmt.where(Encounter.organization_id == self.organization_id)
+        if search and search.strip():
+            pattern = f"%{search.strip()}%"
+            stmt = stmt.where(
+                or_(
+                    Encounter.patient_reference.ilike(pattern),
+                    Encounter.encounter_type.ilike(pattern),
+                )
+            )
+        if status == "coded":
+            stmt = stmt.where(
+                exists().where(
+                    CodingJob.encounter_id == Encounter.id,
+                    CodingJob.status == "completed",
+                )
+            )
+        elif status == "pending":
+            stmt = stmt.where(
+                exists().where(
+                    CodingSuggestion.encounter_id == Encounter.id,
+                    CodingSuggestion.review_status == "pending",
+                )
+            )
+        elif status == "not_coded":
+            stmt = stmt.where(~exists().where(CodingJob.encounter_id == Encounter.id))
+        return stmt
+
+    def list(
+        self,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+        search: str | None = None,
+        status: str = "all",
+        sort: str = "created_at",
+        order: str = "desc",
+    ) -> list[Encounter]:
+        stmt = self._apply_filters(select(Encounter), search, status)
+        column = getattr(Encounter, sort)  # validated against SORT_FIELDS upstream
+        stmt = stmt.order_by(column.desc() if order == "desc" else column.asc())
+        stmt = stmt.limit(limit).offset(offset)
+        return self.db.execute(stmt).scalars().all()
+
+    def count(self, search: str | None = None, status: str = "all") -> int:
+        stmt = self._apply_filters(select(func.count()).select_from(Encounter), search, status)
+        return self.db.execute(stmt).scalar_one()
 
     def add_document(
         self, *, encounter_id: str, content: str, content_hash: str, document_type: str = "clinical_note"

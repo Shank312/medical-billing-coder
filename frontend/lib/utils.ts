@@ -1,5 +1,3 @@
-import type { Encounter } from "./types";
-
 export function cn(...classes: (string | false | null | undefined)[]): string {
   return classes.filter(Boolean).join(" ");
 }
@@ -55,27 +53,4 @@ export function buildNoteSegments(note: string, spans: HighlightSpan[]): NoteSeg
 
 export function truncate(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
-}
-
-export type EncounterFilter = "all" | "coded" | "pending" | "not-coded";
-
-export function filterEncounters(
-  encounters: Encounter[],
-  search: string,
-  filter: EncounterFilter,
-): Encounter[] {
-  const query = search.trim().toLowerCase();
-  return encounters.filter((encounter) => {
-    const matchesSearch =
-      !query ||
-      (encounter.patient_reference ?? "").toLowerCase().includes(query) ||
-      (encounter.encounter_type ?? "").toLowerCase().includes(query) ||
-      encounter.date_of_service.includes(query);
-    const matchesFilter =
-      filter === "all" ||
-      (filter === "coded" && encounter.coding_status === "completed") ||
-      (filter === "pending" && encounter.review_status === "pending") ||
-      (filter === "not-coded" && !encounter.coding_status);
-    return matchesSearch && matchesFilter;
-  });
 }

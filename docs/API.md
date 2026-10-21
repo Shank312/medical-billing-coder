@@ -116,7 +116,15 @@ All coding endpoints are tenant-scoped and role-gated. `ENCOUNTER_WRITE_ROLES`
 Returns `201` with the encounter. The note is stored separately from any AI output.
 
 ### List / get encounters — `GET /api/v1/encounters` and `GET /api/v1/encounters/{id}`
-`GET /encounters` supports `limit` (1–200) and `offset`. Detail includes suggestions and review history.
+`GET /encounters` supports:
+- `search` — case-insensitive match on `patient_reference` and `encounter_type` (never the note text).
+- `status` — `all` (default), `coded`, `pending`, `not_coded`.
+- `sort` — allowlisted: `date_of_service`, `created_at`, `patient_reference`, `encounter_type` (default `created_at`).
+- `order` — `asc` | `desc` (default `desc`).
+- `limit` (1–200, default 50) and `offset` (default 0); returns a reliable filtered `total`.
+
+Invalid `sort`, `order`, or `status` return `400` with `invalid_sort`/`invalid_order`/
+`invalid_status`. Detail includes the note, suggestions, and review history.
 
 ### Submit for coding — `POST /api/v1/encounters/{id}/code`
 Runs the coding workflow synchronously and returns a `CodingJobDetailOut`. Pass an

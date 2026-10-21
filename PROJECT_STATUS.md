@@ -32,22 +32,30 @@ Last updated: Phase 3 completion.
   `contradictions`; coding jobs persist missing-docs/contradictions. Migration
   `c3ea3c0c5da2_phase_3_note_and_status_exposure`.
 
-## Verification (Phase 3)
+### Phase 3.1 — hardening
 
-- ✅ Backend: 66 tests pass; `ruff check app tests` clean.
+- **Server-side encounter filtering** — `GET /api/v1/encounters` now accepts
+  `search` (case-insensitive match on `patient_reference`/`encounter_type` only —
+  never the note text), `status` (`all`/`coded`/`pending`/`not_coded`), allowlisted
+  `sort` (`date_of_service`/`created_at`/`patient_reference`/`encounter_type`) and
+  `order` (`asc`/`desc`), plus validated `limit`/`offset` with a reliable filtered
+  total. Filtering, counting, sorting, and pagination all run in the database under
+  tenant scoping. No schema change was required.
+
+## Verification (Phase 3 + 3.1)
+
+- ✅ Backend: 73 tests pass; `ruff check app tests` clean.
 - ✅ Alembic cycle: `upgrade head` → `check` (no drift) → `downgrade -1` → re-`upgrade`.
 - ✅ Frontend: `next lint` (no warnings/errors), `tsc --noEmit` clean, production build clean.
-- ✅ Frontend tests: 20 pass (5 suites) via Jest + Testing Library.
+- ✅ Frontend tests: 17 pass (5 suites) via Jest + Testing Library.
+- ✅ Phase 3.1 filtering: search/status/sort/order/pagination and cross-tenant tests pass.
 - ⚠️ PostgreSQL migration verification not run (no PostgreSQL/Docker in this environment).
 
 ## Known limitations (Phase 3)
 
-- The encounter list endpoint does not support **server-side** search/filter/sort;
-  the dashboard filters/sorts the current page client-side and paginates
-  server-side (documented gap; the smallest compatible backend change is to add
-  `search`/`status` query params).
 - The source note is returned only on the single-encounter detail (not in list
   responses) to minimize PHI exposure.
 - No end-to-end browser (Playwright) tests yet (Phase 6); frontend coverage is
   component/unit level.
 - Modifiers and payer-specific rules remain unimplemented (Phase 2+ backlog).
+- PostgreSQL migration/integration not verified (no PostgreSQL/Docker available).

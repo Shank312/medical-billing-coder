@@ -3,10 +3,11 @@ from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 
 from ...constants.roles import ENCOUNTER_WRITE_ROLES, REVIEW_ROLES
+from ...core.errors import BadRequestError
 from ...core.rate_limit import configured_rate_limit_dependency
 from ...db.session import get_db_session
 from ...repositories.coding import SuggestionRepository
-from ...repositories.encounters import EncounterRepository
+from ...repositories.encounters import SORT_FIELDS, STATUS_FILTERS, EncounterRepository
 from ...schemas.coding import (
     CodingJobDetailOut,
     EncounterCreate,
@@ -63,14 +64,27 @@ def create_encounter(
 
 @router.get("", response_model=EncounterListOut, dependencies=[_default_rate_limit])
 def list_encounters(
+    search: str | None = Query(None, max_length=100),
+    status: str = Query("all"),
+    sort: str = Query("created_at"),
+    order: str = Query("desc"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     auth: AuthContext = Depends(get_auth_context),
     db: Session = Depends(get_db_session),
 ):
+    if sort not in SORT_FIELDS:
+        raise BadRequestError("Invalid sort field", code="invalid_sort")
+    if order not in ("asc", "desc"):
+        raise BadRequestError("Invalid sort order", code="invalid_order")
+    if status not in STATUS_FILTERS:
+        raise BadRequestError("Invalid status filter", code="invalid_status")
+
     repo = EncounterRepository(db, auth.organization_id)
-    items = repo.list(limit=limit, offset=offset)
-    total = repo.count()
+    items = repo.list(
+        limit=limit, offset=offset, search=search, status=status, sort=sort, order=order
+    )
+    total = repo.count(search=search, status=status)
     return EncounterListOut(
         items=[encounter_summary(db, e) for e in items], total=total, limit=limit, offset=offset
     )

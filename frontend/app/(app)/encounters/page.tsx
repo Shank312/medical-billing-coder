@@ -1,11 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ApiClientError, api } from "@/lib/api";
 import type { Encounter } from "@/lib/types";
-import { filterEncounters } from "@/lib/utils";
-import type { EncounterFilter } from "@/lib/utils";
 import { EncounterTable } from "@/components/coding/EncounterTable";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -14,12 +12,23 @@ import { Input } from "@/components/ui/Input";
 import { Skeleton } from "@/components/ui/Skeleton";
 
 const PAGE_SIZE = 25;
-const FILTERS = [
+
+const STATUS_OPTIONS = [
   { value: "all", label: "All statuses" },
   { value: "coded", label: "Coded" },
   { value: "pending", label: "Pending review" },
-  { value: "not-coded", label: "Not coded" },
+  { value: "not_coded", label: "Not coded" },
 ] as const;
+
+const SORT_OPTIONS = [
+  { value: "created_at", label: "Created" },
+  { value: "date_of_service", label: "Date of service" },
+  { value: "patient_reference", label: "Patient reference" },
+  { value: "encounter_type", label: "Encounter type" },
+] as const;
+
+const selectClasses =
+  "mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500";
 
 export default function EncountersPage() {
   const [encounters, setEncounters] = useState<Encounter[]>([]);
@@ -27,32 +36,51 @@ export default function EncountersPage() {
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<string>("all");
 
-  const load = useCallback(async (pageOffset: number) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await api.listEncounters({ limit: PAGE_SIZE, offset: pageOffset });
-      setEncounters(result.items);
-      setTotal(result.total);
-      setOffset(result.offset);
-    } catch (err) {
-      setError(err instanceof ApiClientError ? err.message : "Failed to load encounters.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [status, setStatus] = useState<string>("all");
+  const [sort, setSort] = useState<string>("created_at");
+  const [order, setOrder] = useState<"asc" | "desc">("desc");
+  const [reloadKey, setReloadKey] = useState(0);
+
+  // Debounce search so we do not issue a request per keystroke.
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   useEffect(() => {
-    load(0);
-  }, [load]);
-
-  const filtered = useMemo(
-    () => filterEncounters(encounters, search, filter as EncounterFilter),
-    [encounters, search, filter],
-  );
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const result = await api.listEncounters({
+          limit: PAGE_SIZE,
+          offset,
+          search: debouncedSearch || undefined,
+          status,
+          sort,
+          order,
+        });
+        if (!cancelled) {
+          setEncounters(result.items);
+          setTotal(result.total);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof ApiClientError ? err.message : "Failed to load encounters.");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedSearch, status, sort, order, offset, reloadKey]);
 
   const hasPrev = offset > 0;
   const hasNext = offset + encounters.length < total;
@@ -72,31 +100,74 @@ export default function EncountersPage() {
       </div>
 
       <div className="flex flex-wrap gap-3">
-        <div className="min-w-[240px] flex-1">
+        <div className="min-w-[220px] flex-1">
           <Input
             id="search"
             label="Search"
             type="search"
-            placeholder="Search by patient reference, type, or date"
+            placeholder="Search by patient reference or type"
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setOffset(0);
+            }}
           />
         </div>
-        <div className="w-full sm:w-auto">
-          <label htmlFor="filter" className="block text-sm font-medium text-slate-700">
+        <div className="w-full sm:w-40">
+          <label htmlFor="status" className="block text-sm font-medium text-slate-700">
             Status
           </label>
           <select
-            id="filter"
-            value={filter}
-            onChange={(event) => setFilter(event.target.value)}
-            className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            id="status"
+            value={status}
+            onChange={(event) => {
+              setStatus(event.target.value);
+              setOffset(0);
+            }}
+            className={selectClasses}
           >
-            {FILTERS.map((option) => (
+            {STATUS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
             ))}
+          </select>
+        </div>
+        <div className="w-full sm:w-44">
+          <label htmlFor="sort" className="block text-sm font-medium text-slate-700">
+            Sort by
+          </label>
+          <select
+            id="sort"
+            value={sort}
+            onChange={(event) => {
+              setSort(event.target.value);
+              setOffset(0);
+            }}
+            className={selectClasses}
+          >
+            {SORT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="w-full sm:w-28">
+          <label htmlFor="order" className="block text-sm font-medium text-slate-700">
+            Order
+          </label>
+          <select
+            id="order"
+            value={order}
+            onChange={(event) => {
+              setOrder(event.target.value as "asc" | "desc");
+              setOffset(0);
+            }}
+            className={selectClasses}
+          >
+            <option value="desc">Newest</option>
+            <option value="asc">Oldest</option>
           </select>
         </div>
       </div>
@@ -108,15 +179,11 @@ export default function EncountersPage() {
           ))}
         </div>
       ) : error ? (
-        <ErrorState message={error} onRetry={() => load(offset)} />
-      ) : filtered.length === 0 ? (
+        <ErrorState message={error} onRetry={() => setReloadKey((key) => key + 1)} />
+      ) : encounters.length === 0 ? (
         <EmptyState
-          title={encounters.length === 0 ? "No encounters yet" : "No matching encounters"}
-          description={
-            encounters.length === 0
-              ? "Create an encounter to begin the coding workflow."
-              : "Try adjusting your search or filter."
-          }
+          title="No encounters"
+          description="No encounters match the current search and filters, or none have been created yet."
           action={
             <Link href="/encounters/new">
               <Button>New encounter</Button>
@@ -124,18 +191,26 @@ export default function EncountersPage() {
           }
         />
       ) : (
-        <EncounterTable encounters={filtered} />
+        <EncounterTable encounters={encounters} />
       )}
 
       {!loading && !error && total > PAGE_SIZE ? (
         <div className="flex items-center justify-between">
-          <Button variant="secondary" disabled={!hasPrev} onClick={() => load(offset - PAGE_SIZE)}>
+          <Button
+            variant="secondary"
+            disabled={!hasPrev}
+            onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
+          >
             Previous
           </Button>
           <span className="text-sm text-slate-500">
             {total === 0 ? 0 : offset + 1}–{Math.min(offset + PAGE_SIZE, total)} of {total}
           </span>
-          <Button variant="secondary" disabled={!hasNext} onClick={() => load(offset + PAGE_SIZE)}>
+          <Button
+            variant="secondary"
+            disabled={!hasNext}
+            onClick={() => setOffset(offset + PAGE_SIZE)}
+          >
             Next
           </Button>
         </div>

@@ -108,10 +108,23 @@ export const api = {
   },
 
   // --- encounters ---
-  listEncounters(params: { limit?: number; offset?: number } = {}) {
+  listEncounters(
+    params: {
+      limit?: number;
+      offset?: number;
+      search?: string;
+      status?: string;
+      sort?: string;
+      order?: "asc" | "desc";
+    } = {},
+  ) {
     const query = new URLSearchParams();
     if (params.limit !== undefined) query.set("limit", String(params.limit));
     if (params.offset !== undefined) query.set("offset", String(params.offset));
+    if (params.search) query.set("search", params.search);
+    if (params.status && params.status !== "all") query.set("status", params.status);
+    if (params.sort && params.sort !== "created_at") query.set("sort", params.sort);
+    if (params.order && params.order !== "desc") query.set("order", params.order);
     const qs = query.toString();
     return request<EncounterList>(`/api/v1/encounters${qs ? `?${qs}` : ""}`, { auth: true });
   },
