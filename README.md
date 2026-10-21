@@ -174,8 +174,24 @@ Full details in [`docs/API.md`](docs/API.md).
 Tenant isolation at the repository layer, deny-by-default RBAC, Argon2id password
 hashing, hashed rotating refresh tokens with reuse detection, Fernet-encrypted
 MFA secrets, an HMAC-chained append-only audit log, redacted logging, rate
-limiting, and a normalized error contract that never leaks internals. See
+limiting, security headers, fail-closed production configuration validation, and a
+normalized error contract that never leaks internals. See
 [`docs/SECURITY.md`](docs/SECURITY.md) for boundaries and known limits.
+
+## Integration tests (require real infrastructure)
+
+The offline suite uses SQLite + eager Celery. Real PostgreSQL/Redis verification is
+separate and skipped when the environment variables are absent:
+
+```powershell
+cd "D:\Medical Billing Coder\backend"
+$env:TEST_POSTGRES_URL = "postgresql+psycopg2://mbc:change_me@localhost:5432/mbc_test"
+$env:TEST_REDIS_URL   = "redis://localhost:6379/0"
+python -m pytest tests/test_integration_infra.py -v
+```
+
+See [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the full migration, worker,
+retention, backup, and incident-response procedures.
 
 ## Documentation
 
@@ -183,5 +199,6 @@ limiting, and a normalized error contract that never leaks internals. See
 - [`docs/SECURITY.md`](docs/SECURITY.md)
 - [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md)
 - [`docs/API.md`](docs/API.md)
+- [`docs/OPERATIONS.md`](docs/OPERATIONS.md)
 - [`docs/COMPLIANCE_CHECKLIST.md`](docs/COMPLIANCE_CHECKLIST.md)
 - [`PROJECT_STATUS.md`](PROJECT_STATUS.md)

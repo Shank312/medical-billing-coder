@@ -103,11 +103,19 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _reject_insecure_secrets_in_production(self) -> "Settings":
         if self.app_env == "production":
-            if self.secret_key.startswith("dev-only") or self.audit_hmac_key.startswith("dev-only"):
-                raise ValueError(
-                    "Production mode requires SECRET_KEY and AUDIT_HMAC_KEY to be set "
-                    "to real values (not the dev-only placeholders)."
-                )
+            problems: list[str] = []
+            if not self.secret_key or self.secret_key.startswith("dev-only"):
+                problems.append("SECRET_KEY must be set to a real value")
+            if not self.audit_hmac_key or self.audit_hmac_key.startswith("dev-only"):
+                problems.append("AUDIT_HMAC_KEY must be set to a real value")
+            if not self.mfa_encryption_key:
+                problems.append("MFA_ENCRYPTION_KEY must be set")
+            if not self.cookie_secure:
+                problems.append("COOKIE_SECURE must be true")
+            if any(origin.strip() == "*" for origin in self.cors_origins):
+                problems.append("CORS_ORIGINS must not be '*'")
+            if problems:
+                raise ValueError("Insecure production configuration: " + "; ".join(problems))
         return self
 
     @property

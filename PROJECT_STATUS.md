@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: Phase 6 completion.
+Last updated: Phase 7 completion.
 
 | Phase | Scope | Status |
 |---|---|---|
@@ -9,10 +9,11 @@ Last updated: Phase 6 completion.
 | 3 — Coding workspace UI | Premium split-screen coding workspace, encounters dashboard (search/filter/pagination), create-encounter form, human-review workflow, auth context + route guard, accessible component library, frontend tests | ✅ Complete |
 | 4 — Async coding jobs | Celery + Redis worker, durable queued→running→completed/failed lifecycle, idempotent at-least-once delivery, bounded retries, stale-job recovery, 202 async API + frontend polling | ✅ Complete |
 | 5 — Batch document ingestion | Batch/document models + migration, secure multi-file upload, PDF text extraction, strict CSV import, staged idempotent worker pipeline, batch status API + frontend | ✅ Complete |
-| **6 — Exports & coding summaries** | CSV/XLSX collection exports, per-encounter PDF summary, batch CSV export, formula-injection + filename safeguards, audit, frontend actions | ✅ **Complete** |
-| 6b — Documents (remaining) | Audio transcription, malware-scan hook, object storage | Planned |
-| 7 — SaaS & durable memory | Subscriptions, usage ledger, Stripe + webhooks, tenant-scoped memory (pgvector optional) | Planned |
-| 8 — Interop & hardening | FHIR export, dashboards, usage metrics, Playwright e2e, security hardening | Planned |
+| 6 — Exports & coding summaries | CSV/XLSX collection exports, per-encounter PDF summary, batch CSV export, formula-injection + filename safeguards, audit, frontend actions | ✅ Complete |
+| **7 — Hardening & verification** | Fail-closed production config validation, security headers, storage/export/cross-tenant hardening tests, PostgreSQL/Redis integration scaffolding, operations/retention documentation | ✅ **Complete** |
+| 7b — Documents (remaining) | Audio transcription, malware-scan hook, object storage | Planned |
+| 8 — SaaS & durable memory | Subscriptions, usage ledger, Stripe + webhooks, tenant-scoped memory (pgvector optional) | Planned |
+| 9 — Interop | FHIR export, dashboards, usage metrics, browser E2E (Playwright) | Planned |
 
 ## Phase 3 — delivered
 
@@ -103,19 +104,37 @@ Last updated: Phase 6 completion.
 - **Frontend** — export actions on the encounters dashboard (CSV/XLSX), the coding
   workspace (PDF summary), and the batch detail page (CSV).
 
-## Verification (Phase 6)
+## Phase 7 — delivered (hardening & verification)
 
-- ✅ Backend: 109 tests pass; `ruff check app tests` clean.
-- ✅ Alembic `check` — no drift (exports are read-only; no migration added).
+- **Production config validation** — fail-closed on dev-placeholder secrets, a
+  missing MFA key, `COOKIE_SECURE=false`, or a wildcard CORS origin in `production`.
+- **Security headers** — `X-Content-Type-Options`, `X-Frame-Options`,
+  `Referrer-Policy`, `Cache-Control: no-store` on API responses; HSTS in production.
+- **Hardening tests** — production-config rejection, header presence, health
+  endpoints, storage path-traversal, formula-injection control characters,
+  export-no-AI-invocation, and cross-tenant review (12 new tests).
+- **Integration scaffolding** — `tests/test_integration_infra.py` skips honestly
+  without `TEST_POSTGRES_URL`/`TEST_REDIS_URL`; documented migration/worker/E2E
+  procedures in `docs/OPERATIONS.md`.
+- **Operations docs** — retention, backup, offboarding, monitoring, and incident
+  response posture; `docs/SECURITY.md` records remaining gaps (recovery, email
+  verification, MFA reauth, distributed rate limiting, DB-level audit enforcement).
+
+## Verification (Phase 7)
+
+- ✅ Backend: 120 tests pass + 3 integration tests skipped (no PostgreSQL/Redis);
+  `ruff check app tests` clean.
+- ✅ Alembic `check` — no drift (no migration added).
 - ✅ Frontend: `next lint` (no warnings/errors), `tsc --noEmit` clean, production build clean (8 routes).
 - ✅ Frontend tests: 17 pass (5 suites) via Jest + Testing Library.
-- ⚠️ Real Redis broker, PostgreSQL, and browser E2E not verified here.
+- ⚠️ PostgreSQL, Redis/Celery, and browser E2E verification NOT run (unavailable here).
 
-## Known limitations (Phase 6)
+## Known limitations (Phase 7)
 
-- Collection exports are synchronous and bounded (`max_export_rows`); very large
-  exports are rejected with `export_too_large` rather than streamed or run async.
-- Local filesystem storage (Phase 5) is development-only; no object storage.
-- No malware scanning; OCR, audio transcription, FHIR, and claims remain out of scope.
-- Real Redis/PostgreSQL integration and browser E2E not verified in this environment.
+- PostgreSQL/Redis integration and browser E2E are written as skippable scaffolding
+  and documented manual procedures, but were not executed in this environment.
+- No account recovery/email verification, no MFA step-up, in-memory rate limiting,
+  and application-level (not database-enforced) audit.
+- Local filesystem storage is development-only; no object storage, malware scan,
+  OCR, backups (untested), or automatic retention/deletion.
 - Cancellation remains deferred; async delivery is at-least-once (idempotent effects).

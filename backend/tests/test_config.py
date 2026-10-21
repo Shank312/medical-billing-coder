@@ -18,5 +18,7 @@ def test_production_accepts_real_secrets():
         app_env="production",
         secret_key="a-real-32-plus-character-production-secret",
         audit_hmac_key="a-real-32-plus-character-audit-secret",
+        mfa_encryption_key="a-real-fernet-key-material-here-32b=",
+        cookie_secure=True,
     )
     assert settings.is_production is True

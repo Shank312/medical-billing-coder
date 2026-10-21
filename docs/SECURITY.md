@@ -172,3 +172,28 @@ scanning integration point before any file is stored or processed.
   and must be stored/shared securely by authorized users.
 - Spreadsheet cells neutralize formula injection; PDF content is XML-escaped and
   bounded; filenames are fixed/UUID-derived so headers cannot be manipulated.
+
+## Phase 7 security review — remaining gaps
+
+The following are **not yet implemented** and are documented as known gaps:
+
+- **Account recovery / email verification**: none. There is no verified-email flow,
+  no password reset, and no account-lockout or recovery path.
+- **MFA reauthentication**: MFA is enforced at login when enrolled, but there is no
+  step-up/reauthentication for sensitive actions and no MFA recovery flow.
+- **Rate limiting scope**: rate limits are applied to the API routes and are
+  in-memory (not distributed); they do not cover the frontend-rendered pages and
+  are bypassed if the API is exposed behind a different proxy.
+- **Audit enforcement**: audit events are written by the application service layer,
+  not enforced at the database/trigger level. They are append-only by convention
+  (never updated/deleted in code) but are not cryptographically protected against a
+  compromised application process.
+- **Security headers**: `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`,
+  and `Cache-Control: no-store` are set on API responses; HSTS is set only in
+  production. There is no CSP for the API (the frontend is a separate origin).
+- **Production configuration**: the settings validator fails closed on dev-placeholder
+  secrets, a missing MFA key, `COOKIE_SECURE=false`, or a wildcard CORS origin in
+  `production` mode.
+
+See [`docs/OPERATIONS.md`](OPERATIONS.md) for retention, backup, offboarding,
+monitoring, incident response, and integration-test procedures.
