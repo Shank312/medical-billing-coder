@@ -42,6 +42,9 @@ pnpm-debug.log*
 *.sqlite
 *.sqlite3
 
+# --- Local upload storage (development only) ---
+.storage/
+
 # --- OS / editor ---
 .DS_Store
 Thumbs.db

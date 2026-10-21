@@ -150,3 +150,23 @@ Sets: `code_type`, `source`, `version` (unique together), effective dates, `reco
 `coding_jobs.missing_documentation_json` and `coding_jobs.contradictions_json`
 (Text, nullable) persist the model output's missing-documentation and contradiction
 lists for display in the workspace (migration `c3ea3c0c5da2`).
+
+### Phase 5 tables (migration `bafb83f983e4`)
+
+#### `ingestion_batches`
+`organization_id`, `created_by`, `date_of_service` (Date nullable — applies to
+PDF-derived encounters), `status` (`queued`/`processing`/`completed`),
+`total_documents`, `processed_documents`, `failed_documents`, `completed_at`.
+
+#### `ingestion_documents`
+`batch_id` (FK, indexed), `organization_id` (FK, indexed), `original_filename`,
+`storage_key` (internal, unique, sanitized), `media_type`, `byte_size`,
+`content_hash` (SHA-256, indexed — dedup), `extraction_status`
+(`pending`/`processing`/`completed`/`failed`/`requires_manual`), `error_code`,
+`extracted_text` (PDF text — PHI, never returned in list responses),
+`encounter_id`, `coding_job_id`, `row_results_json` (CSV row → encounter/job map
+and row errors), `attempt_count`, `completed_at`.
+
+The original file, extracted text, AI suggestions, deterministic validation
+results, and human review decisions remain in separate tables/columns so
+provenance is preserved; hidden chain-of-thought is never persisted.

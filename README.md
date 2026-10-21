@@ -3,11 +3,11 @@
 Secure, evidence-linked medical coding review for US medical practices, behavioral
 health providers, billing teams, and multi-provider clinics.
 
-**Phase 3 (current):** a premium, evidence-first coding workspace — split-screen
-clinical note + coding review with exact evidence highlighting, an encounters
-dashboard (search/filter/pagination), create-encounter form, and the human-review
-workflow (approve/reject/correct) — on top of the Phase 2 AI coding engine and the
-Phase 1 secure core.
+**Phase 5 (current):** secure batch document ingestion — multi-file PDF/CSV
+upload with type/size/signature checks, `pypdf` text extraction, strict CSV import,
+and a staged Celery pipeline (extract → create encounters → enqueue coding) — on top
+of the Phase 4 async coding worker, the Phase 3 coding workspace, the Phase 2 AI
+engine, and the Phase 1 secure core.
 
 > **Compliance note:** this project is designed to *support* HIPAA-regulated
 > workloads but is **not** certified HIPAA-compliant. No compliance claim is made
@@ -25,7 +25,7 @@ Phase 1 secure core.
 | Backend | Python 3.12, FastAPI, Pydantic v2, SQLAlchemy 2.0 |
 | Database | PostgreSQL 16 (production) / SQLite (local tests) |
 | Migrations | Alembic |
-| Background jobs | Celery + Redis (reserved for Phase 4) |
+| Background jobs | Celery + Redis (async coding + batch ingestion) |
 | AI | Provider-agnostic interface: DeepSeek + mock adapters, disabled by default with a PHI approval gate |
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full design.
@@ -131,7 +131,7 @@ docker compose -f infra/docker-compose.yml --env-file .env up --build
 ```
 
 - Backend: <http://localhost:8000> (runs `alembic upgrade head` on start)
-- Worker: Celery (coding jobs) · Redis broker: `localhost:6379`
+- Worker: Celery (coding + batch ingestion) · Redis broker: `localhost:6379`
 - Frontend: <http://localhost:3000>
 - PostgreSQL: `localhost:5432`
 
@@ -156,6 +156,12 @@ docker compose -f infra/docker-compose.yml --env-file .env up --build
 - `GET /api/v1/coding-jobs/{id}` — job status + suggestions
 - `POST /api/v1/code-references/import` — load an authorized code set (owner/admin)
 - `GET /api/v1/code-references/lookup` and `/sets` — validate / list code sets
+
+**Phase 5 — batch ingestion:**
+- `POST /api/v1/batches` and `GET /api/v1/batches` — create / list batches
+- `POST /api/v1/batches/{id}/documents` — upload `.pdf` / `.csv` files (multi-file)
+- `GET /api/v1/batches/{id}` — batch + per-document status
+- `POST /api/v1/batches/{id}/documents/{doc_id}/retry` — retry a failed document
 
 Full details in [`docs/API.md`](docs/API.md).
 

@@ -167,3 +167,26 @@ Returns job status plus its suggestions (with evidence, validation status, revie
 and `missing_documentation` / `contradictions` (from the latest completed job).
 `GET /api/v1/encounters` items include `coding_status` and `review_status` (but not
 the note text). `CodingJobOut` includes `missing_documentation` and `contradictions`.
+
+### Phase 5 additions — batch ingestion
+
+- `POST /api/v1/batches` — create a batch (optional `date_of_service`).
+- `POST /api/v1/batches/{id}/documents` — multipart upload of `.pdf`/`.csv` files
+  (50 files max, 5 MB each, aggregate limits enforced).
+- `GET /api/v1/batches` — list batches (paginated).
+- `GET /api/v1/batches/{id}` — batch detail with per-document status.
+- `POST /api/v1/batches/{id}/documents/{doc_id}/retry` — retry a failed document.
+
+Document statuses: `pending`, `processing`, `completed`, `failed`, `requires_manual`.
+
+#### CSV schema
+
+Header: `date_of_service,note,encounter_type,place_of_service,patient_reference,payer_context`.
+Required columns: `date_of_service` (YYYY-MM-DD) and `note`. The remaining columns
+are optional. Row-level errors (`invalid_date`, `missing_note`, `note_too_long`,
+`duplicate_row`) are recorded without silently dropping valid rows.
+
+Batch error codes: `unsupported_type`, `file_too_large`, `empty_file`, `too_many_files`,
+`not_in_batch`, `not_retryable`, `pdf_extraction_failed`, `encrypted_pdf`,
+`pdf_too_many_pages`, `extracted_too_long`, `csv_schema_invalid`, `csv_no_valid_rows`,
+`csv_too_many_rows`, `no_text`, `missing_date`.

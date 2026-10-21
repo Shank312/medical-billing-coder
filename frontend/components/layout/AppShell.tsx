@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 const NAV_ITEMS = [
   { href: "/encounters", label: "Encounters" },
   { href: "/encounters/new", label: "New encounter" },
+  { href: "/batches", label: "Batch ingestion" },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {

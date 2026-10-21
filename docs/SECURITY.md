@@ -144,3 +144,19 @@ scanning integration point before any file is stored or processed.
   state; no hidden chain-of-thought or raw provider responses are persisted.
 - A broker failure marks the job `failed` and returns `503` — never a false success.
 - Redis must not be exposed publicly; credentials come from environment configuration.
+
+## Batch document ingestion (Phase 5)
+
+- Uploaded files are streamed to non-public storage under internally generated,
+  strictly validated keys — user filenames and MIME headers are never trusted for
+  paths or type decisions (extension + file signature are checked).
+- Limits are enforced on file count, individual file size, PDF pages, and extracted
+  text length; oversized/empty/encrypted/malformed files are rejected with sanitized
+  error codes.
+- List responses never include extracted text, content hashes, storage keys, or the
+  source note; only encounter/coding-job ids are exposed for authorized navigation.
+- Documents are not malware-scanned (no scanner available); the storage/upload layer
+  is isolated so scanning can be added later. Do not assume uploads are scanned.
+- Local filesystem storage is development-only and not production-durable; object
+  storage with access controls is required for production. Backups, retention, and
+  deletion are not yet implemented and remain assumptions to be addressed.

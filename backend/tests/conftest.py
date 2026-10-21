@@ -5,9 +5,13 @@ SQLite file. Tables are reset before each test for isolation.
 """
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # backend dir
+
+_STORAGE_DIR = Path(tempfile.gettempdir()) / "mbc_test_storage"
+os.environ["STORAGE_DIR"] = str(_STORAGE_DIR)
 
 _TEST_DB = Path(__file__).resolve().parent / ".test_mbc.db"
 if _TEST_DB.exists():

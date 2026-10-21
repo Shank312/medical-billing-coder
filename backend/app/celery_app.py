@@ -13,7 +13,7 @@ _settings = get_settings()
 celery_app = Celery(
     "medical_billing_coder",
     broker=_settings.celery_broker_url,
-    include=["app.tasks.coding"],
+    include=["app.tasks.coding", "app.tasks.documents"],
 )
 
 celery_app.conf.update(

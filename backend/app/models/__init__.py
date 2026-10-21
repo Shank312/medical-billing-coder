@@ -5,6 +5,7 @@ from .coding_job import CodingAttempt, CodingJob
 from .coding_suggestion import CodingSuggestion, EvidenceSpan
 from .encounter import Encounter
 from .encounter_document import EncounterDocument
+from .ingestion import IngestionBatch, IngestionDocument
 from .membership import Membership
 from .mfa import MfaConfig
 from .organization import Organization
@@ -22,6 +23,8 @@ __all__ = [
     "AuditChainState",
     "Encounter",
     "EncounterDocument",
+    "IngestionBatch",
+    "IngestionDocument",
     "CodingJob",
     "CodingAttempt",
     "CodingSuggestion",

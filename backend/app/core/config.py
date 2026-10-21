@@ -66,6 +66,15 @@ class Settings(BaseSettings):
     coding_retry_backoff_base: float = 2.0
     coding_stale_after_seconds: int = 600
 
+    # Batch document ingestion.
+    storage_dir: str = "./.storage"
+    max_upload_file_size: int = 5 * 1024 * 1024
+    max_upload_files_per_batch: int = 50
+    max_upload_batch_size: int = 50 * 1024 * 1024
+    max_pdf_pages: int = 100
+    max_extracted_chars: int = 50_000
+    max_csv_rows: int = 500
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def _split_cors(cls, value: object) -> object:

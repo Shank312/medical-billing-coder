@@ -140,3 +140,20 @@ Delivery is at-least-once with idempotent effects: only the job id is published
 (never the note), workers re-fetch and verify the job/encounter from the database,
 and the atomic claim prevents concurrent duplicate processing. The API enqueues and
 returns `202`; the frontend polls `GET /coding-jobs/{id}` until a terminal state.
+
+## Batch document ingestion (Phase 5)
+
+Batch ingestion reuses the Phase 4 Celery worker for staged, idempotent processing.
+
+- `app/storage.py` — storage abstraction with a non-public local-filesystem
+  development implementation (swap for object storage in production).
+- `services/documents.py` — file sniffing, `pypdf` text extraction (page/text
+  limits, no OCR), and strict CSV parsing.
+- `services/batches.py` — batch/document lifecycle and per-document processing
+  (claim `pending -> processing`, then extract/parse → create encounters → enqueue
+  coding → refresh batch counts).
+- `tasks/documents.py` — `ingestion.process_document` (acks-late, bounded retries).
+
+Uploads are streamed to storage with content-hash dedup; the worker re-fetches the
+document and verifies tenant ownership from the database. Scanned/image-only PDFs
+are marked `requires_manual` (OCR is out of scope).

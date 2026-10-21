@@ -2,6 +2,7 @@
 from fastapi import APIRouter
 
 from .auth import router as auth_router
+from .batches import router as batches_router
 from .coding import router as coding_router
 from .encounters import router as encounters_router
 from .organizations import router as organizations_router
@@ -13,3 +14,4 @@ api_router.include_router(organizations_router)
 api_router.include_router(encounters_router)
 api_router.include_router(coding_router)
 api_router.include_router(references_router)
+api_router.include_router(batches_router)

@@ -115,3 +115,42 @@ export interface EncounterDetail extends Encounter {
 }
 
 export type ReviewDecisionType = "approved" | "rejected" | "corrected";
+
+// --- Batch ingestion (Phase 5) ---
+
+export interface BatchDocument {
+  id: string;
+  batch_id: string;
+  original_filename: string;
+  media_type: string;
+  byte_size: number;
+  extraction_status: string;
+  error_code: string | null;
+  encounter_id: string | null;
+  coding_job_id: string | null;
+  attempt_count: number;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export interface Batch {
+  id: string;
+  status: string;
+  date_of_service: string | null;
+  total_documents: number;
+  processed_documents: number;
+  failed_documents: number;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export interface BatchDetail extends Batch {
+  documents: BatchDocument[];
+}
+
+export interface BatchList {
+  items: Batch[];
+  total: number;
+  limit: number;
+  offset: number;
+}

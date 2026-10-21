@@ -1,6 +1,10 @@
 import type {
   ApiErrorBody,
   AuthResponse,
+  Batch,
+  BatchDetail,
+  BatchDocument,
+  BatchList,
   CodingJobDetail,
   Encounter,
   EncounterDetail,
@@ -168,5 +172,59 @@ export const api = {
       `/api/v1/encounters/${encounterId}/suggestions/${suggestionId}/review`,
       { method: "POST", body: payload, auth: true },
     );
+  },
+
+  // --- batch ingestion ---
+  listBatches() {
+    return request<BatchList>("/api/v1/batches", { auth: true });
+  },
+
+  createBatch(dateOfService?: string) {
+    return request<Batch>("/api/v1/batches", {
+      method: "POST",
+      body: { date_of_service: dateOfService ?? null },
+      auth: true,
+    });
+  },
+
+  getBatch(batchId: string) {
+    return request<BatchDetail>(`/api/v1/batches/${batchId}`, { auth: true });
+  },
+
+  async uploadDocuments(batchId: string, files: File[]): Promise<BatchDocument[]> {
+    const form = new FormData();
+    for (const file of files) form.append("files", file);
+    const response = await fetch(`${API_BASE}/api/v1/batches/${batchId}/documents`, {
+      method: "POST",
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      body: form,
+      credentials: "include",
+    });
+    if (response.status === 401) {
+      onAuthExpired?.();
+      throw new ApiClientError(401, {
+        error: { code: "unauthorized", message: "Your session has expired.", request_id: null },
+      });
+    }
+    if (!response.ok) {
+      let payload: ApiErrorBody;
+      try {
+        payload = (await response.json()) as ApiErrorBody;
+      } catch {
+        payload = {
+          error: { code: "network_error", message: `Upload failed with status ${response.status}`, request_id: null },
+        };
+      }
+      throw new ApiClientError(response.status, payload);
+    }
+    return (await response.json()) as BatchDocument[];
+  },
+
+  retryDocument(batchId: string, documentId: string) {
+    return request<BatchDocument>(`/api/v1/batches/${batchId}/documents/${documentId}/retry`, {
+      method: "POST",
+      body: {},
+      auth: true,
+    });
   },
 };
