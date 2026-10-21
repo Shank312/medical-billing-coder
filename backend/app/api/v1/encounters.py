@@ -1,5 +1,7 @@
-"""Encounter endpoints: create, list, detail, submit-for-coding, and review."""
-from fastapi import APIRouter, Depends, Query, Request
+"""Encounter endpoints: create, list, detail, submit-for-coding, review, and export."""
+from urllib.parse import quote
+
+from fastapi import APIRouter, Depends, Query, Request, Response
 from sqlalchemy.orm import Session
 
 from ...constants.roles import ENCOUNTER_WRITE_ROLES, REVIEW_ROLES
@@ -17,6 +19,7 @@ from ...schemas.coding import (
     ReviewRequest,
     SuggestionOut,
 )
+from ...services.audit import AuditService
 from ...services.serializers import (
     encounter_detail_out,
     encounter_out,
@@ -29,6 +32,23 @@ from ..deps import AuthContext, get_auth_context, request_info, require_roles
 router = APIRouter(prefix="/encounters", tags=["encounters"])
 
 _default_rate_limit = Depends(configured_rate_limit_dependency("rate_limit_default", key_prefix="encounters"))
+
+
+def _validate_export_filters(sort: str, order: str, status: str) -> None:
+    if sort not in SORT_FIELDS:
+        raise BadRequestError("Invalid sort field", code="invalid_sort")
+    if order not in ("asc", "desc"):
+        raise BadRequestError("Invalid sort order", code="invalid_order")
+    if status not in STATUS_FILTERS:
+        raise BadRequestError("Invalid status filter", code="invalid_status")
+
+
+def _export_response(content: str | bytes, media_type: str, filename: str) -> Response:
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{quote(filename)}"'},
+    )
 
 
 @router.post("", response_model=EncounterOut, status_code=201, dependencies=[_default_rate_limit])
@@ -88,6 +108,103 @@ def list_encounters(
     return EncounterListOut(
         items=[encounter_summary(db, e) for e in items], total=total, limit=limit, offset=offset
     )
+
+
+@router.get("/export.csv", dependencies=[_default_rate_limit])
+def export_encounters_csv(
+    request: Request,
+    search: str | None = Query(None, max_length=100),
+    status: str = Query("all"),
+    sort: str = Query("created_at"),
+    order: str = Query("desc"),
+    auth: AuthContext = Depends(get_auth_context),
+    db: Session = Depends(get_db_session),
+):
+    _validate_export_filters(sort, order, status)
+    ip, ua = request_info(request)
+    from ...services import exports as exports_service
+
+    data = exports_service.collect_export_data(
+        db, auth.organization_id, search=search, status=status, sort=sort, order=order
+    )
+    content = exports_service.generate_csv(data, exports_service.CSV_COLUMNS)
+    AuditService.append(
+        db,
+        organization_id=auth.organization_id,
+        actor_user_id=auth.user_id,
+        action="export.generated",
+        resource_type="encounter",
+        resource_id="collection",
+        ip_address=ip,
+        user_agent=ua,
+        metadata={"format": "csv", "rows": len(data["rows"])},
+    )
+    db.commit()
+    return _export_response(content, "text/csv; charset=utf-8", "coding_export.csv")
+
+
+@router.get("/export.xlsx", dependencies=[_default_rate_limit])
+def export_encounters_xlsx(
+    request: Request,
+    search: str | None = Query(None, max_length=100),
+    status: str = Query("all"),
+    sort: str = Query("created_at"),
+    order: str = Query("desc"),
+    auth: AuthContext = Depends(get_auth_context),
+    db: Session = Depends(get_db_session),
+):
+    _validate_export_filters(sort, order, status)
+    ip, ua = request_info(request)
+    from ...services import exports as exports_service
+
+    data = exports_service.collect_export_data(
+        db, auth.organization_id, search=search, status=status, sort=sort, order=order
+    )
+    content = exports_service.generate_xlsx(data)
+    AuditService.append(
+        db,
+        organization_id=auth.organization_id,
+        actor_user_id=auth.user_id,
+        action="export.generated",
+        resource_type="encounter",
+        resource_id="collection",
+        ip_address=ip,
+        user_agent=ua,
+        metadata={"format": "xlsx", "rows": len(data["rows"])},
+    )
+    db.commit()
+    return _export_response(
+        content,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "coding_export.xlsx",
+    )
+
+
+@router.get("/{encounter_id}/summary.pdf", dependencies=[_default_rate_limit])
+def export_encounter_pdf(
+    encounter_id: str,
+    request: Request,
+    auth: AuthContext = Depends(get_auth_context),
+    db: Session = Depends(get_db_session),
+):
+    ip, ua = request_info(request)
+    from ...services import exports as exports_service
+
+    encounter = EncounterRepository(db, auth.organization_id).get(encounter_id)
+    content = exports_service.generate_pdf_summary(db, auth.organization_id, encounter)
+    AuditService.append(
+        db,
+        organization_id=auth.organization_id,
+        actor_user_id=auth.user_id,
+        action="export.generated",
+        resource_type="encounter",
+        resource_id=encounter_id,
+        ip_address=ip,
+        user_agent=ua,
+        metadata={"format": "pdf"},
+    )
+    db.commit()
+    return _export_response(content, "application/pdf", f"summary_{encounter_id}.pdf")
 
 
 @router.get("/{encounter_id}", response_model=EncounterDetailOut, dependencies=[_default_rate_limit])

@@ -160,3 +160,15 @@ scanning integration point before any file is stored or processed.
 - Local filesystem storage is development-only and not production-durable; object
   storage with access controls is required for production. Backups, retention, and
   deletion are not yet implemented and remain assumptions to be addressed.
+
+## Exports (Phase 6)
+
+- Export endpoints require authentication and tenant-scoped authorization before
+  any content is generated; no public, unauthenticated download URLs are used.
+- Export audit events record actor, organization, resource, format, and outcome —
+  never note text, workbook contents, credentials, or tokens.
+- Generated artifacts are returned synchronously and are not persisted; nothing is
+  left behind on failure. Exported files may contain sensitive health information
+  and must be stored/shared securely by authorized users.
+- Spreadsheet cells neutralize formula injection; PDF content is XML-escaped and
+  bounded; filenames are fixed/UUID-derived so headers cannot be manipulated.

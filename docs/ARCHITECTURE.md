@@ -157,3 +157,18 @@ Batch ingestion reuses the Phase 4 Celery worker for staged, idempotent processi
 Uploads are streamed to storage with content-hash dedup; the worker re-fetches the
 document and verifies tenant ownership from the database. Scanned/image-only PDFs
 are marked `requires_manual` (OCR is out of scope).
+
+## Exports and coding summaries (Phase 6)
+
+`services/exports.py` generates tenant-scoped CSV, XLSX (openpyxl), and PDF
+(reportlab) artifacts from persisted database state — it never regenerates AI
+suggestions or modifies review decisions.
+
+- CSV/XLSX are collection exports driven by the existing validated encounter
+  filters (bounded by `max_export_rows`); XLSX uses fixed worksheets
+  (`Encounters`, `Coding Results`, `Review History`, `Warnings`).
+- The per-encounter PDF summary clearly marks unreviewed output and carries a
+  disclaimer (not a claim, guarantee, or certification).
+- Every cell passes a formula-injection sanitizer; generated filenames are fixed or
+  UUID-derived (never user input); responses are synchronous and nothing is
+  persisted beyond an audit event. Batch CSV export reuses the batch/document model.

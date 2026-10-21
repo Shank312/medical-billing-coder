@@ -86,6 +86,48 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   return (await response.json()) as T;
 }
 
+async function downloadFile(path: string, filename: string): Promise<void> {
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    credentials: "include",
+  });
+  if (response.status === 401) {
+    onAuthExpired?.();
+    throw new ApiClientError(401, {
+      error: { code: "unauthorized", message: "Your session has expired.", request_id: null },
+    });
+  }
+  if (!response.ok) {
+    let payload: ApiErrorBody;
+    try {
+      payload = (await response.json()) as ApiErrorBody;
+    } catch {
+      payload = {
+        error: { code: "network_error", message: `Export failed with status ${response.status}`, request_id: null },
+      };
+    }
+    throw new ApiClientError(response.status, payload);
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+function exportQuery(params: { search?: string; status?: string; sort?: string; order?: "asc" | "desc" }) {
+  const query = new URLSearchParams();
+  if (params.search) query.set("search", params.search);
+  if (params.status && params.status !== "all") query.set("status", params.status);
+  if (params.sort && params.sort !== "created_at") query.set("sort", params.sort);
+  if (params.order && params.order !== "desc") query.set("order", params.order);
+  return query.toString();
+}
+
 export const api = {
   // --- auth ---
   login(email: string, password: string, mfaCode?: string, organizationId?: string) {
@@ -226,5 +268,24 @@ export const api = {
       body: {},
       auth: true,
     });
+  },
+
+  // --- exports ---
+  exportCsv(params: { search?: string; status?: string; sort?: string; order?: "asc" | "desc" } = {}) {
+    const qs = exportQuery(params);
+    return downloadFile(`/api/v1/encounters/export.csv${qs ? `?${qs}` : ""}`, "coding_export.csv");
+  },
+
+  exportXlsx(params: { search?: string; status?: string; sort?: string; order?: "asc" | "desc" } = {}) {
+    const qs = exportQuery(params);
+    return downloadFile(`/api/v1/encounters/export.xlsx${qs ? `?${qs}` : ""}`, "coding_export.xlsx");
+  },
+
+  exportPdfSummary(encounterId: string) {
+    return downloadFile(`/api/v1/encounters/${encounterId}/summary.pdf`, `summary_${encounterId}.pdf`);
+  },
+
+  exportBatchCsv(batchId: string) {
+    return downloadFile(`/api/v1/batches/${batchId}/export.csv`, `batch_${batchId}_export.csv`);
   },
 };

@@ -38,6 +38,7 @@ export default function BatchDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -95,6 +96,18 @@ export default function BatchDetailPage() {
     }
   }
 
+  async function handleExport() {
+    setExporting(true);
+    setError(null);
+    try {
+      await api.exportBatchCsv(id);
+    } catch (err) {
+      setError(err instanceof ApiClientError ? err.message : "Export failed.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
@@ -120,6 +133,11 @@ export default function BatchDetailPage() {
         </div>
         <div className="text-sm text-slate-600">
           {batch.processed_documents}/{batch.total_documents} processed · {batch.failed_documents} failed
+          <div className="mt-2">
+            <Button loading={exporting} disabled={exporting} onClick={handleExport}>
+              Export CSV
+            </Button>
+          </div>
         </div>
       </div>
 

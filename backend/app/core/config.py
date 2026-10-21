@@ -75,6 +75,9 @@ class Settings(BaseSettings):
     max_extracted_chars: int = 50_000
     max_csv_rows: int = 500
 
+    # Exports.
+    max_export_rows: int = 1000
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def _split_cors(cls, value: object) -> object:

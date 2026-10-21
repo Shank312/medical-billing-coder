@@ -78,6 +78,7 @@ export default function EncounterWorkspacePage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const [polling, setPolling] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -172,6 +173,18 @@ export default function EncounterWorkspacePage() {
     }
   }
 
+  async function handleExportPdf() {
+    setExporting(true);
+    setError(null);
+    try {
+      await api.exportPdfSummary(id);
+    } catch (err) {
+      setError(err instanceof ApiClientError ? err.message : "The summary could not be generated.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
@@ -206,6 +219,9 @@ export default function EncounterWorkspacePage() {
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={coding.variant}>{coding.label}</Badge>
           <Badge variant={review.variant}>{review.label}</Badge>
+          <Button loading={exporting} disabled={exporting} onClick={handleExportPdf}>
+            PDF summary
+          </Button>
           {canSubmit ? (
             <Button loading={submitting || polling} disabled={polling} onClick={handleSubmitCoding}>
               {polling ? "Coding in progress…" : detail.suggestions.length > 0 ? "Re-run coding" : "Run coding"}

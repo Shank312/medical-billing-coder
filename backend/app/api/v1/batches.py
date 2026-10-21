@@ -1,5 +1,7 @@
 """Batch ingestion endpoints (Phase 5)."""
-from fastapi import APIRouter, Depends, File, Query, UploadFile
+from urllib.parse import quote
+
+from fastapi import APIRouter, Depends, File, Query, Request, Response, UploadFile
 from sqlalchemy.orm import Session
 
 from ...core.config import get_settings
@@ -9,11 +11,43 @@ from ...db.session import get_db_session
 from ...repositories.ingestion import BatchRepository, DocumentRepository
 from ...schemas.ingestion import BatchCreateIn, BatchDetailOut, BatchListOut, BatchOut, DocumentOut
 from ...services import batches as batches_service
-from ..deps import AuthContext, get_auth_context
+from ...services.audit import AuditService
+from ..deps import AuthContext, get_auth_context, request_info
 
 router = APIRouter(prefix="/batches", tags=["batches"])
 
 _default_rate_limit = Depends(configured_rate_limit_dependency("rate_limit_default", key_prefix="batches"))
+
+
+@router.get("/{batch_id}/export.csv", dependencies=[_default_rate_limit])
+def export_batch_csv(
+    batch_id: str,
+    request: Request,
+    auth: AuthContext = Depends(get_auth_context),
+    db: Session = Depends(get_db_session),
+):
+    ip, ua = request_info(request)
+    from ...services import exports as exports_service
+
+    data = exports_service.collect_batch_export(db, auth.organization_id, batch_id)
+    content = exports_service.generate_csv(data, exports_service.BATCH_CSV_COLUMNS)
+    AuditService.append(
+        db,
+        organization_id=auth.organization_id,
+        actor_user_id=auth.user_id,
+        action="export.generated",
+        resource_type="ingestion_batch",
+        resource_id=batch_id,
+        ip_address=ip,
+        user_agent=ua,
+        metadata={"format": "csv", "rows": len(data["rows"])},
+    )
+    db.commit()
+    return Response(
+        content=content,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{quote(f"batch_{batch_id}_export.csv")}"'},
+    )
 
 
 @router.post("", response_model=BatchOut, status_code=201, dependencies=[_default_rate_limit])

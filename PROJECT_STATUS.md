@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: Phase 5 completion.
+Last updated: Phase 6 completion.
 
 | Phase | Scope | Status |
 |---|---|---|
@@ -8,10 +8,11 @@ Last updated: Phase 5 completion.
 | 2 — AI coding workflow | Provider-agnostic AI (DeepSeek + mock, disabled-by-default + PHI gate), coding-domain models + migration, structured coding workflow with exact-evidence validation, deterministic reference validation, coding API | ✅ Complete |
 | 3 — Coding workspace UI | Premium split-screen coding workspace, encounters dashboard (search/filter/pagination), create-encounter form, human-review workflow, auth context + route guard, accessible component library, frontend tests | ✅ Complete |
 | 4 — Async coding jobs | Celery + Redis worker, durable queued→running→completed/failed lifecycle, idempotent at-least-once delivery, bounded retries, stale-job recovery, 202 async API + frontend polling | ✅ Complete |
-| **5 — Batch document ingestion** | Batch/document models + migration, secure multi-file upload (type/size/signature checks, streaming storage), PDF text extraction, strict CSV import, staged idempotent worker pipeline, batch status API + frontend | ✅ **Complete** |
-| 5b — Documents (remaining) | Audio transcription, CSV/XLSX export, PDF summary, malware-scan hook, object storage | Planned |
-| 6 — SaaS & durable memory | Subscriptions, usage ledger, Stripe + webhooks, tenant-scoped memory (pgvector optional) | Planned |
-| 7 — Interop & hardening | FHIR export, dashboards, usage metrics, Playwright e2e, security hardening | Planned |
+| 5 — Batch document ingestion | Batch/document models + migration, secure multi-file upload, PDF text extraction, strict CSV import, staged idempotent worker pipeline, batch status API + frontend | ✅ Complete |
+| **6 — Exports & coding summaries** | CSV/XLSX collection exports, per-encounter PDF summary, batch CSV export, formula-injection + filename safeguards, audit, frontend actions | ✅ **Complete** |
+| 6b — Documents (remaining) | Audio transcription, malware-scan hook, object storage | Planned |
+| 7 — SaaS & durable memory | Subscriptions, usage ledger, Stripe + webhooks, tenant-scoped memory (pgvector optional) | Planned |
+| 8 — Interop & hardening | FHIR export, dashboards, usage metrics, Playwright e2e, security hardening | Planned |
 
 ## Phase 3 — delivered
 
@@ -81,21 +82,40 @@ Last updated: Phase 5 completion.
 - **Frontend** — `/batches` (list/create/upload) and `/batches/[id]` (status table,
   polling, retry, navigate to encounter workspace).
 
-## Verification (Phase 5)
+## Phase 6 — delivered (exports & coding summaries)
 
-- ✅ Backend: 100 tests pass; `ruff check app tests` clean.
-- ✅ Alembic cycle: `upgrade head` → `check` (no drift) → `downgrade -1` → re-`upgrade`.
+- **CSV export** — `GET /encounters/export.csv` (collection, uses the validated
+  `search`/`status`/`sort`/`order` filters) and `GET /batches/{id}/export.csv`
+  (batch/document status). Deterministic schemas with formula-injection
+  neutralization and correct UTF-8/quoting.
+- **XLSX export** — `GET /encounters/export.xlsx` (openpyxl) with `Encounters`,
+  `Coding Results`, `Review History`, and `Warnings` worksheets; frozen header rows,
+  text-only cells, no formulas/macros.
+- **PDF summary** — `GET /encounters/{id}/summary.pdf` (reportlab): encounter ref,
+  coding/review status, suggestions with review decisions, warnings, an explicit
+  UNREVIEWED banner, and a disclaimer (not a claim/guarantee/certification).
+- **Review semantics** — AI-suggested vs approved/rejected/corrected are distinct;
+  a code is labeled approved only from a persisted human decision.
+- **Safety** — bounded rows (`max_export_rows`), sanitized cells, UUID/fixed
+  filenames, XML-escaped PDF text, synchronous response (no persisted artifacts).
+- **Audit** — `export.generated` events (actor, org, resource, format, row count)
+  with no clinical content.
+- **Frontend** — export actions on the encounters dashboard (CSV/XLSX), the coding
+  workspace (PDF summary), and the batch detail page (CSV).
+
+## Verification (Phase 6)
+
+- ✅ Backend: 109 tests pass; `ruff check app tests` clean.
+- ✅ Alembic `check` — no drift (exports are read-only; no migration added).
 - ✅ Frontend: `next lint` (no warnings/errors), `tsc --noEmit` clean, production build clean (8 routes).
 - ✅ Frontend tests: 17 pass (5 suites) via Jest + Testing Library.
-- ✅ Offline tests use synthetic PDFs/CSVs + eager Celery (no Redis/OCR required).
-- ⚠️ Real Redis broker, PostgreSQL, and malware scanning not verified here.
+- ⚠️ Real Redis broker, PostgreSQL, and browser E2E not verified here.
 
-## Known limitations (Phase 5)
+## Known limitations (Phase 6)
 
-- Local filesystem storage is development-only; object storage, backup, retention,
-  and deletion are not implemented (documented assumptions).
-- No malware scanning; uploads must not be treated as scanned.
-- OCR for scanned/image-only PDFs is out of scope (`requires_manual`).
-- Audio transcription, CSV/XLSX export, and PDF summary remain deferred (Phase 5b).
+- Collection exports are synchronous and bounded (`max_export_rows`); very large
+  exports are rejected with `export_too_large` rather than streamed or run async.
+- Local filesystem storage (Phase 5) is development-only; no object storage.
+- No malware scanning; OCR, audio transcription, FHIR, and claims remain out of scope.
 - Real Redis/PostgreSQL integration and browser E2E not verified in this environment.
-- Cancellation remains deferred; delivery is at-least-once (idempotent effects).
+- Cancellation remains deferred; async delivery is at-least-once (idempotent effects).

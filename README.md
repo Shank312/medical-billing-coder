@@ -3,11 +3,10 @@
 Secure, evidence-linked medical coding review for US medical practices, behavioral
 health providers, billing teams, and multi-provider clinics.
 
-**Phase 5 (current):** secure batch document ingestion — multi-file PDF/CSV
-upload with type/size/signature checks, `pypdf` text extraction, strict CSV import,
-and a staged Celery pipeline (extract → create encounters → enqueue coding) — on top
-of the Phase 4 async coding worker, the Phase 3 coding workspace, the Phase 2 AI
-engine, and the Phase 1 secure core.
+**Phase 6 (current):** secure, tenant-isolated exports and coding summaries —
+collection CSV/XLSX exports, per-encounter PDF summaries, and batch CSV export with
+formula-injection and filename safeguards — on top of the Phase 5 batch ingestion,
+Phase 4 async coding, Phase 3 workspace, Phase 2 AI engine, and Phase 1 secure core.
 
 > **Compliance note:** this project is designed to *support* HIPAA-regulated
 > workloads but is **not** certified HIPAA-compliant. No compliance claim is made
@@ -162,6 +161,11 @@ docker compose -f infra/docker-compose.yml --env-file .env up --build
 - `POST /api/v1/batches/{id}/documents` — upload `.pdf` / `.csv` files (multi-file)
 - `GET /api/v1/batches/{id}` — batch + per-document status
 - `POST /api/v1/batches/{id}/documents/{doc_id}/retry` — retry a failed document
+
+**Phase 6 — exports:**
+- `GET /api/v1/encounters/export.csv` and `/export.xlsx` — collection exports (CSV/XLSX)
+- `GET /api/v1/encounters/{id}/summary.pdf` — per-encounter coding summary
+- `GET /api/v1/batches/{id}/export.csv` — batch document status export
 
 Full details in [`docs/API.md`](docs/API.md).
 

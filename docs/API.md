@@ -190,3 +190,25 @@ Batch error codes: `unsupported_type`, `file_too_large`, `empty_file`, `too_many
 `not_in_batch`, `not_retryable`, `pdf_extraction_failed`, `encrypted_pdf`,
 `pdf_too_many_pages`, `extracted_too_long`, `csv_schema_invalid`, `csv_no_valid_rows`,
 `csv_too_many_rows`, `no_text`, `missing_date`.
+
+### Phase 6 additions — exports
+
+- `GET /api/v1/encounters/export.csv` — collection CSV (accepts the same
+  `search`/`status`/`sort`/`order` filters as the list; bounded by `max_export_rows`).
+- `GET /api/v1/encounters/export.xlsx` — collection workbook
+  (`Encounters`, `Coding Results`, `Review History`, `Warnings` worksheets).
+- `GET /api/v1/encounters/{id}/summary.pdf` — per-encounter coding summary.
+- `GET /api/v1/batches/{id}/export.csv` — per-batch document status export.
+
+#### CSV column semantics
+
+`encounter_id`, `date_of_service`, `patient_reference`, `encounter_type`,
+`place_of_service`, `coding_status`, `source` (always `ai_suggested` for code rows),
+`code_system`, `code`, `description`, `confidence`, `validation_status`,
+`review_decision` (`unreviewed`/`approved`/`rejected`/`corrected`), `corrected_code`,
+`evidence_quotes`, `missing_documentation`, `contradictions`, `reviewed_at`.
+
+A code is labeled `approved` only when an explicit persisted human review decision
+establishes it. Formula-injection triggers (`=`, `+`, `-`, `@`, including after
+leading whitespace/control characters) are neutralized with a leading `'`.
+Export error codes: `export_too_large`, `unsupported_format`.

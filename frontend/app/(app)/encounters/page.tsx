@@ -43,6 +43,7 @@ export default function EncountersPage() {
   const [sort, setSort] = useState<string>("created_at");
   const [order, setOrder] = useState<"asc" | "desc">("desc");
   const [reloadKey, setReloadKey] = useState(0);
+  const [exporting, setExporting] = useState<string | null>(null);
 
   // Debounce search so we do not issue a request per keystroke.
   useEffect(() => {
@@ -85,6 +86,20 @@ export default function EncountersPage() {
   const hasPrev = offset > 0;
   const hasNext = offset + encounters.length < total;
 
+  async function handleExport(format: "csv" | "xlsx") {
+    setExporting(format);
+    setError(null);
+    try {
+      const params = { search: debouncedSearch || undefined, status, sort, order };
+      if (format === "csv") await api.exportCsv(params);
+      else await api.exportXlsx(params);
+    } catch (err) {
+      setError(err instanceof ApiClientError ? err.message : "Export failed.");
+    } finally {
+      setExporting(null);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -94,9 +109,17 @@ export default function EncountersPage() {
             {total} encounter{total === 1 ? "" : "s"}
           </p>
         </div>
-        <Link href="/encounters/new">
-          <Button>New encounter</Button>
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button loading={exporting === "csv"} disabled={exporting !== null} onClick={() => handleExport("csv")}>
+            Export CSV
+          </Button>
+          <Button loading={exporting === "xlsx"} disabled={exporting !== null} onClick={() => handleExport("xlsx")}>
+            Export XLSX
+          </Button>
+          <Link href="/encounters/new">
+            <Button>New encounter</Button>
+          </Link>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-3">
