@@ -28,6 +28,15 @@ OWNER_ROLES: tuple[Role, ...] = (Role.OWNER,)
 # Roles granted read access to organization-scoped data in Phase 1.
 READ_ROLES: tuple[Role, ...] = ALL_ROLES
 
+# Roles that may create encounters and submit coding requests.
+ENCOUNTER_WRITE_ROLES: tuple[Role, ...] = (Role.OWNER, Role.ADMIN, Role.PROVIDER, Role.CODER)
+
+# Roles that may review, correct, approve, or reject coding suggestions.
+REVIEW_ROLES: tuple[Role, ...] = (Role.OWNER, Role.ADMIN, Role.CODER, Role.BILLER)
+
+# Roles that may import code-reference datasets.
+REFERENCE_ADMIN_ROLES: tuple[Role, ...] = (Role.OWNER, Role.ADMIN)
+
 
 def is_valid_role(role: str) -> bool:
     """Return True when ``role`` is a known role name."""

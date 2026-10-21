@@ -60,3 +60,23 @@ class RateLimitError(AppError):
 class ServiceUnavailableError(AppError):
     status_code = 503
     code = "service_unavailable"
+
+
+class AiDisabledError(AppError):
+    status_code = 403
+    code = "ai_disabled"
+
+
+class PhiNotApprovedError(AppError):
+    status_code = 403
+    code = "phi_not_approved"
+
+
+class ProviderError(AppError):
+    status_code = 502
+    code = "provider_error"
+
+
+class ReferenceDataUnavailableError(AppError):
+    status_code = 422
+    code = "reference_data_unavailable"

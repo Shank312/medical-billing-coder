@@ -3,10 +3,13 @@
 Secure, evidence-linked medical coding review for US medical practices, behavioral
 health providers, billing teams, and multi-provider clinics.
 
-**Phase 1 (current):** a secure platform core — tenant-isolated authentication,
-RBAC, refresh-token sessions with rotation and reuse detection, TOTP MFA, an
-append-only hash-chained audit log, redacted logging, and rate limiting, plus a
-Next.js shell with a typed API client and a premium login screen.
+**Phase 2 (current):** adds a provider-agnostic AI coding engine (DeepSeek + a
+local mock behind one interface, disabled by default with a PHI approval gate),
+tenant-scoped encounters/coding jobs/suggestions/evidence, a structured coding
+workflow with exact-evidence validation and hallucination rejection, and
+deterministic ICD-10/CPT/HCPCS reference validation — on top of the Phase 1 secure
+core (tenant isolation, RBAC, refresh rotation + reuse detection, TOTP MFA,
+hash-chained audit, redacted logging, rate limiting).
 
 > **Compliance note:** this project is designed to *support* HIPAA-regulated
 > workloads but is **not** certified HIPAA-compliant. No compliance claim is made
@@ -25,7 +28,7 @@ Next.js shell with a typed API client and a premium login screen.
 | Database | PostgreSQL 16 (production) / SQLite (local tests) |
 | Migrations | Alembic |
 | Background jobs | Celery + Redis (reserved for Phase 4) |
-| AI | Provider-agnostic interface; DeepSeek adapter lands in Phase 2 (disabled now) |
+| AI | Provider-agnostic interface: DeepSeek + mock adapters, disabled by default with a PHI approval gate |
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full design.
 
@@ -135,7 +138,7 @@ docker compose -f infra/docker-compose.yml --env-file .env up --build
 
 ---
 
-## Phase 1 API surface
+## API surface
 
 - `POST /api/v1/auth/register` — create an organization + owner and sign in
 - `POST /api/v1/auth/login` — email/password (+ optional `mfa_code`)
@@ -145,6 +148,15 @@ docker compose -f infra/docker-compose.yml --env-file .env up --build
 - `POST /api/v1/auth/mfa/enroll` / `verify` / `disable` — TOTP MFA
 - `GET  /api/v1/auth/me` — current user, organization, roles
 - `GET/PATCH /api/v1/organizations/{id}` and member management under `/users`
+
+**Phase 2 — coding:**
+- `POST /api/v1/encounters` — create an encounter with a source note
+- `GET /api/v1/encounters` and `GET /api/v1/encounters/{id}` — list / detail
+- `POST /api/v1/encounters/{id}/code` — submit for coding (returns a job; supports `Idempotency-Key`)
+- `POST /api/v1/encounters/{id}/suggestions/{sid}/review` — approve / reject / correct
+- `GET /api/v1/coding-jobs/{id}` — job status + suggestions
+- `POST /api/v1/code-references/import` — load an authorized code set (owner/admin)
+- `GET /api/v1/code-references/lookup` and `/sets` — validate / list code sets
 
 Full details in [`docs/API.md`](docs/API.md).
 

@@ -110,3 +110,37 @@ organizations 1──N refresh_tokens
 - `ix_refresh_tokens_user_id`, `_organization_id`, `_token_hash` (unique)
 - `ix_mfa_configs_user_id` (unique)
 - `ix_audit_events_*` on organization, actor, action, occurred_at
+
+## Phase 2 tables (coding domain)
+
+All tenant-scoped tables carry `organization_id` (or reach it via `encounters`).
+
+### `encounters`
+| Column | Type | Notes |
+|---|---|---|
+| id / organization_id / created_by | String FK | |
+| date_of_service | Date | |
+| encounter_type / place_of_service / payer_context | String nullable | billing context |
+| patient_reference | String(255) nullable | opaque, minimal |
+| status | String(30) | |
+
+### `encounter_documents` (source note)
+`encounter_id` FK, `document_type`, `content` (Text — the original note), `content_hash` (SHA-256). Stored separately from AI output.
+
+### `coding_jobs`
+`organization_id`, `encounter_id`, `client_request_id` (unique per org — idempotency), `status` (queued/running/completed/failed), `code_set_version`, `schema_version`, `prompt_version`, `error_code`, `completed_at`.
+
+### `coding_attempts` (model metadata)
+`job_id`, `provider_name`, `model_name`, `prompt_version`, `schema_version`, `code_set_version`, `request_id`, `status`, `latency_ms`, `prompt_tokens`/`completion_tokens`/`total_tokens`, `error_code`. No chain-of-thought.
+
+### `coding_suggestions`
+`encounter_id`, `job_id`, `code_type` (icd10cm/cpt/hcpcs/modifier), `code`, `description`, `confidence`, `rationale`, `applies_to`/`parent_suggestion_id` (modifiers), `validation_status`, `review_status`, `reviewed_by`/`reviewed_at`, `corrected_code`, `flags_json`.
+
+### `evidence_spans`
+`suggestion_id`, `quote` (verbatim), `start_offset`, `end_offset`.
+
+### `review_decisions` (append-only history)
+`suggestion_id`, `encounter_id`, `reviewer_id`, `decision`, `corrected_code`, `note`.
+
+### `code_reference_sets` + `code_references` (global reference data)
+Sets: `code_type`, `source`, `version` (unique together), effective dates, `record_count`, `imported_by`. References: `set_id`, `code` (unique per set), `description`, effective dates, `is_billable`, metadata.

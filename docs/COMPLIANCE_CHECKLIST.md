@@ -60,17 +60,23 @@ For every provider that may receive PHI:
 - [ ] Change management and audit-log retention policy.
 - [ ] Penetration testing and independent security assessment before production.
 
-## 6. AI coding workflow safeguards (Phase 2+)
+## 6. AI coding workflow safeguards
 
-- [ ] Treat AI output as **suggestions**, never verified facts; require human review.
-- [ ] Validate all codes against authoritative, versioned code sets with
-      date-of-service validity and payer-specific rules.
-- [ ] Never auto-submit claims.
-- [ ] Telehealth mentions trigger contextual review, never unconditional modifiers.
-- [ ] Log AI metadata (model, prompt version, token counts), not clinical text.
+- [x] Treat AI output as **suggestions**, never verified facts; require human review
+      (review status + decisions are enforced; there is no auto-submit path).
+- [x] Validate codes against authoritative, versioned code sets with date-of-service
+      validity (deterministic `valid`/`date_invalid`/`unknown`/`reference_data_unavailable`;
+      payer-specific rules remain future work).
+- [x] Never auto-submit claims (no claim submission path exists).
+- [x] Telehealth mentions trigger contextual review, never unconditional modifiers
+      (the system prompt forbids assigning modifier 95 solely for a telehealth mention).
+- [x] Log AI metadata (model, prompt version, token counts), not clinical text.
+- [x] AI transmission is disabled by default and gated behind an explicit PHI
+      approval flag for external providers; the note is treated as untrusted data.
 
 ## Status
 
-Phase 1 implements the technical foundations listed in section 3. Sections 1, 2,
-4, 5, and 6 remain open and must be completed — with independent verification —
-before any production or PHI use.
+Phases 1–2 implement the technical foundations in section 3 and the AI coding
+safeguards in section 6. Sections 1 (BAAs), 2 (provider eligibility), 4 (remaining
+technical controls), and 5 (operational/administrative controls) remain open and
+must be completed — with independent verification — before any production or PHI use.

@@ -29,6 +29,7 @@ frontend (Next.js) ──HTTP/JSON──▶ backend (FastAPI)
 | Repositories | `app/repositories` | SQLAlchemy queries. `TenantScopedRepository` enforces tenant isolation. |
 | Models | `app/models` | ORM models and mixins (UUID PKs, timestamps). |
 | Core | `app/core` | `config`, `security`, `crypto`, `errors`, `logging`, `rate_limit`, `time`. |
+| AI | `app/ai` | Provider interface, DeepSeek + mock adapters, prompts, quality checks. |
 | Schemas | `app/schemas` | Pydantic request/response contracts. |
 
 Dependency direction is one-way: `api → services → repositories → models`. No
@@ -81,3 +82,28 @@ layer imports upward.
 All settings come from environment variables (and an optional `.env`) via
 `pydantic-settings` (`app/core/config.py`). See `.env.example` in the backend and
 root for the full key set. Secrets are never hard-coded.
+
+## AI and coding domain (Phase 2)
+
+The coding workflow depends only on the provider interface in `app/ai`:
+
+- `base.py` — `AIProvider.complete(ProviderRequest) -> ProviderResponse` plus
+  message/usage types.
+- `deepseek.py` — OpenAI-compatible chat-completions adapter (bounded retries,
+  backoff, timeouts, token accounting, sanitized errors). Sends only documented
+  parameters and invents no privacy flags.
+- `mock.py` — deterministic local provider so tests run with no network/API key.
+- `registry.py` — name → provider class, selected from `ai_provider`.
+- `prompts.py` / `schemas.py` — versioned prompt and coding-output contract.
+- `quality.py` — deterministic evidence checks (offsets recomputed, hallucinated
+  quotes dropped/flagged).
+
+Transmission gates: the workflow refuses unless `ai_enabled` is true, and, for
+PHI-transmitting providers, `ai_phi_approved` is true (the local mock is exempt).
+
+Coding domain (`services/coding.py`, `services/reference_data.py`) runs
+synchronously in Phase 2 (Celery arrives in Phase 4). The model returns *candidate*
+suggestions; exact-evidence validation, deterministic code-set validation, and
+human review are distinct, audited stages. Reference datasets are loaded — never
+invented — via `import_code_set`; an unloaded code type yields the explicit
+`reference_data_unavailable` status.

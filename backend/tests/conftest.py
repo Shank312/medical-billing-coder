@@ -21,6 +21,11 @@ os.environ["RATE_LIMIT_ENABLED"] = "false"
 os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"] = "15"
 os.environ["REFRESH_TOKEN_EXPIRE_DAYS"] = "30"
 
+# AI coding: enabled with the local mock provider (no network / no API key).
+os.environ["AI_ENABLED"] = "true"
+os.environ["AI_PROVIDER"] = "mock"
+os.environ["AI_PHI_APPROVED"] = "false"
+
 from cryptography.fernet import Fernet  # noqa: E402
 
 os.environ["MFA_ENCRYPTION_KEY"] = Fernet.generate_key().decode()

@@ -95,6 +95,23 @@ rule.
 Not yet implemented. When added: size/type allow-lists, validation, and a malware
 scanning integration point before any file is stored or processed.
 
+## AI data handling (Phase 2)
+
+- Transmission is **disabled by default**. The coding workflow requires
+  `ai_enabled`, and PHI-transmitting providers additionally require
+  `ai_phi_approved`. The local mock provider transmits nothing and needs no gate.
+- The DeepSeek adapter sends only documented parameters (model, messages,
+  temperature, max_tokens, stream). It does **not** invent privacy/retention flags.
+- The clinical note is treated as **untrusted data**: it is delimited in the prompt,
+  and the system prompt states it must not override instructions or request secrets.
+  No instruction embedded in a note is executed.
+- Only **minimum necessary** data is sent (note + date of service + encounter
+  context); no additional patient identifiers are forwarded.
+- AI metadata (provider, model, prompt/schema versions, token counts, request id)
+  is persisted in `coding_attempts`; **no chain-of-thought** is stored.
+- Model credentials come only from `DEEPSEEK_API_KEY`; errors are sanitized — no
+  key, request body, or response body appears in errors or logs.
+
 ## Known gaps to close before production
 
 1. No email verification or account-recovery flow yet.

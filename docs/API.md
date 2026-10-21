@@ -102,9 +102,47 @@ Member list/update/remove return `UserWithRole`:
 Guardrails: the last active owner cannot be demoted, deactivated, or removed
 (`409 last_owner`).
 
+## Coding endpoints (Phase 2)
+
+All coding endpoints are tenant-scoped and role-gated. `ENCOUNTER_WRITE_ROLES`
+(owner, admin, provider, coder) may create encounters and submit coding;
+`REVIEW_ROLES` (owner, admin, coder, biller) may review; `REFERENCE_ADMIN_ROLES`
+(owner, admin) may import code sets; any authenticated member may read.
+
+### Create encounter — `POST /api/v1/encounters`
+```json
+{ "date_of_service": "2025-03-15", "note": "…clinical text…", "encounter_type": "office visit", "place_of_service": "11", "patient_reference": "…", "payer_context": "…" }
+```
+Returns `201` with the encounter. The note is stored separately from any AI output.
+
+### List / get encounters — `GET /api/v1/encounters` and `GET /api/v1/encounters/{id}`
+`GET /encounters` supports `limit` (1–200) and `offset`. Detail includes suggestions and review history.
+
+### Submit for coding — `POST /api/v1/encounters/{id}/code`
+Runs the coding workflow synchronously and returns a `CodingJobDetailOut`. Pass an
+`Idempotency-Key` header to deduplicate retries. On a provider/output failure the
+job is returned with `status: "failed"` and a sanitized `error_code`.
+
+### Get job — `GET /api/v1/coding-jobs/{id}`
+Returns job status plus its suggestions (with evidence, validation status, review status).
+
+### Review a suggestion — `POST /api/v1/encounters/{id}/suggestions/{sid}/review`
+```json
+{ "decision": "approved" | "rejected" | "corrected", "corrected_code": "…", "note": "…" }
+```
+
+### Code references — import / lookup / sets
+- `POST /api/v1/code-references/import` (owner/admin)
+- `GET /api/v1/code-references/lookup?code_type=&code=&date_of_service=`
+  → `{ "code", "code_type", "status": "valid"|"date_invalid"|"unknown"|"reference_data_unavailable", "description", "version", "source" }`
+- `GET /api/v1/code-references/sets`
+
 ## Error codes (non-exhaustive)
 
 `unauthorized`, `forbidden`, `not_found`, `conflict`, `bad_request`,
 `validation_error`, `rate_limited`, `internal_error`, `email_in_use`,
 `slug_in_use`, `mfa_required`, `refresh_reuse`, `organization_required`,
-`last_owner`, `already_member`, `invalid_role`.
+`last_owner`, `already_member`, `invalid_role`, `ai_disabled`, `phi_not_approved`,
+`provider_error`, `invalid_model_output`, `reference_data_unavailable`,
+`note_required`, `corrected_code_required`, `invalid_decision`, `code_set_exists`,
+`invalid_code_type`.

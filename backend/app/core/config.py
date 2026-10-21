@@ -45,6 +45,19 @@ class Settings(BaseSettings):
     rate_limit_auth: str = "10/minute"
     rate_limit_trust_proxy: bool = False
 
+    # AI provider. Transmission is OFF unless ai_enabled AND (for PHI-transmitting
+    # providers) ai_phi_approved are both true. The mock provider is local-only.
+    ai_enabled: bool = False
+    ai_provider: str = "mock"
+    ai_phi_approved: bool = False
+    ai_timeout_seconds: float = 60.0
+    ai_max_retries: int = 2
+    ai_max_tokens: int = 4096
+    ai_temperature: float = 0.0
+    deepseek_api_key: str = ""
+    deepseek_base_url: str = "https://api.deepseek.com"
+    deepseek_model: str = "deepseek-chat"
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def _split_cors(cls, value: object) -> object:
@@ -60,6 +73,14 @@ class Settings(BaseSettings):
         return value
 
     @model_validator(mode="after")
+    def _validate_ai_config(self) -> "Settings":
+        if self.ai_enabled and self.ai_provider == "deepseek" and not self.deepseek_api_key:
+            raise ValueError(
+                "DEEPSEEK_API_KEY is required when AI is enabled with the DeepSeek provider."
+            )
+        return self
+
+    @model_validator(mode="after")
     def _reject_insecure_secrets_in_production(self) -> "Settings":
         if self.app_env == "production":
             if self.secret_key.startswith("dev-only") or self.audit_hmac_key.startswith("dev-only"):
@@ -68,6 +89,12 @@ class Settings(BaseSettings):
                     "to real values (not the dev-only placeholders)."
                 )
         return self
+
+    @property
+    def ai_transmission_enabled(self) -> bool:
+        """True only when the global AI switch is on. The PHI approval gate is checked
+        separately per-provider in the coding workflow (local mock needs no gate)."""
+        return self.ai_enabled
 
     @property
     def is_testing(self) -> bool:
