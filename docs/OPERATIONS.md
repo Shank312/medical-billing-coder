@@ -50,13 +50,27 @@ clinical records or audit history without an explicit, reviewed retention policy
 ## Integration-test procedure (requires real infrastructure)
 
 The offline suite never substitutes for these. Run them only against a dedicated,
-disposable test environment.
+disposable test environment. The simplest path is the Phase 8 test stack:
 
 ```powershell
-cd "D:\Medical Billing Coder\backend"
-$env:TEST_POSTGRES_URL = "postgresql+psycopg2://mbc:change_me@localhost:5432/mbc_test"
-$env:TEST_REDIS_URL   = "redis://localhost:6379/0"
-python -m pytest tests/test_integration_infra.py -v   # basic connectivity + rollback
+cd "D:\Medical Billing Coder"
+.\scripts\test-infra.ps1 up            # postgres(5433) + redis(6380) + api(8001) + worker + frontend(3001)
+.\scripts\test-infra.ps1 integration   # real PostgreSQL + Redis/Celery tests
+.\scripts\test-infra.ps1 e2e           # Playwright browser tests
+.\scripts\test-infra.ps1 logs          # inspect service logs (no secrets are logged)
+.\scripts\test-infra.ps1 clean         # tear down and drop test data
+```
+
+The test stack uses a disposable PostgreSQL tmpfs volume, a non-persistent Redis
+(`--save ""`), synthetic test credentials (`mbc_test` / `mbc_test_password`), and the
+local mock AI provider — no external AI or PHI transmission.
+
+Run the pieces directly (from `backend/`):
+
+```powershell
+$env:TEST_POSTGRES_URL = "postgresql+psycopg2://mbc_test:mbc_test_password@localhost:5433/mbc_test"
+$env:TEST_REDIS_URL   = "redis://localhost:6380/0"
+python -m pytest integration_tests -v
 ```
 
 Full migrations against PostgreSQL (destructive only on `*_test*` databases):
@@ -68,18 +82,37 @@ python -m alembic check           # no drift
 python -m alembic downgrade -1    # then re-upgrade (isolated test DB only)
 ```
 
-Real Redis/worker verification (manual, in `backend/`):
+Real Redis/worker verification (the `integration_tests/test_redis_celery.py` tests
+require the `worker-test` service from the compose stack to be running):
 
 ```powershell
 python -m celery -A app.celery_app.celery_app worker --loglevel=info --concurrency=2
-# Submit coding via the API, terminate the worker mid-task, restart it, and confirm
-# stale 'running' jobs are recovered by recover_stale_jobs and never double-process.
 ```
 
-Browser E2E (requires Playwright + browsers, not installed here):
+Browser E2E (requires Playwright + browsers):
 
 ```powershell
 cd "D:\Medical Billing Coder\e2e"
-npm install && npx playwright install
-npx playwright test
+npm install && npx playwright install chromium
+E2E_BASE_URL=http://localhost:3001 E2E_API_URL=http://localhost:8001 npx playwright test
 ```
+
+CI (` .github/workflows/ci.yml`) separates unit, integration (real Postgres + Redis +
+a live worker), and browser E2E jobs; unit tests never require Docker.
+
+## Operational safety
+
+- The test database is a separate `mbc_test` database on a tmpfs volume; the test
+  compose stack never mounts a production database, and the migration commands are
+  guarded to `*_test*` databases.
+- Service logs are plaintext and contain no secrets or clinical notes; inspect them
+  with `docker compose -f infra/docker-compose.test.yml logs`.
+- Failed jobs are diagnosed via `GET /coding-jobs/{id}` (sanitized `error_code`) and
+  the audit log; retry is explicit (batch documents only), never automatic for
+  coding.
+- Test resources are removed with `.\scripts\test-infra.ps1 clean` (`down -v`).
+
+Before a production deployment, the mandatory checks are: full unit suite, real
+PostgreSQL integration suite, real Redis/Celery integration suite, browser E2E,
+`alembic check` (no drift), and a secret scan. Passing these does **not** imply HIPAA
+compliance or production readiness.

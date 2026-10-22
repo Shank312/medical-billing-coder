@@ -181,13 +181,24 @@ normalized error contract that never leaks internals. See
 ## Integration tests (require real infrastructure)
 
 The offline suite uses SQLite + eager Celery. Real PostgreSQL/Redis verification is
-separate and skipped when the environment variables are absent:
+separate and never falls back to SQLite/eager Celery. Start the disposable test
+stack, then run the integration suite and the browser E2E suite:
+
+```powershell
+cd "D:\Medical Billing Coder"
+.\scripts\test-infra.ps1 up            # starts postgres (5433), redis (6380), api (8001), worker, frontend (3001)
+.\scripts\test-infra.ps1 integration   # real PostgreSQL + Redis/Celery tests (needs the worker running)
+.\scripts\test-infra.ps1 e2e           # Playwright browser tests (npm install in e2e/ first)
+.\scripts\test-infra.ps1 clean         # tear down and remove test data
+```
+
+Or run the pieces directly:
 
 ```powershell
 cd "D:\Medical Billing Coder\backend"
-$env:TEST_POSTGRES_URL = "postgresql+psycopg2://mbc:change_me@localhost:5432/mbc_test"
-$env:TEST_REDIS_URL   = "redis://localhost:6379/0"
-python -m pytest tests/test_integration_infra.py -v
+$env:TEST_POSTGRES_URL = "postgresql+psycopg2://mbc_test:mbc_test_password@localhost:5433/mbc_test"
+$env:TEST_REDIS_URL   = "redis://localhost:6380/0"
+python -m pytest integration_tests -v
 ```
 
 See [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the full migration, worker,

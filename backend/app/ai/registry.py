@@ -25,6 +25,8 @@ def get_provider(name: str | None = None) -> AIProvider:
     """Instantiate the configured (or named) provider."""
     settings = get_settings()
     resolved = name or settings.ai_provider
+    if resolved == MockProvider.name:
+        return MockProvider(response_json=settings.mock_provider_response or None)
     provider_cls = _REGISTRY.get(resolved)
     if provider_cls is None:
         raise ProviderError(f"Unknown AI provider: {resolved}", code="provider_unknown")

@@ -57,6 +57,7 @@ class Settings(BaseSettings):
     deepseek_api_key: str = ""
     deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_model: str = "deepseek-chat"
+    mock_provider_response: str = ""
 
     # Background coding jobs (Celery + Redis).
     celery_broker_url: str = "redis://localhost:6379/0"

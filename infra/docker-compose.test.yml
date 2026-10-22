@@ -1,0 +1,84 @@
+# Local integration/E2E test stack. Run from the repo root:
+#   docker compose -f infra/docker-compose.test.yml up -d
+#
+# Test-only services, isolated from the development stack (ports 5433/6380/8001/3001).
+# Credentials below are synthetic, test-only, and must NEVER be reused in production.
+services:
+  db-test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: mbc_test
+      POSTGRES_PASSWORD: mbc_test_password
+      POSTGRES_DB: mbc_test
+    ports:
+      - "5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mbc_test -d mbc_test"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  redis-test:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  worker-test:
+    build: ../backend
+    command: celery -A app.celery_app.celery_app worker --loglevel=info --concurrency=2
+    environment:
+      APP_ENV: testing
+      DATABASE_URL: postgresql+psycopg2://mbc_test:mbc_test_password@db-test:5432/mbc_test
+      CELERY_BROKER_URL: redis://redis-test:6379/0
+      SECRET_KEY: test-secret-key-0123456789abcdef
+      AUDIT_HMAC_KEY: test-audit-hmac-key-0123456789abcdef
+      MFA_ENCRYPTION_KEY: test-mfa-key-0123456789abcdef=
+      AI_ENABLED: "true"
+      AI_PROVIDER: mock
+      AI_PHI_APPROVED: "false"
+      MOCK_PROVIDER_RESPONSE: '{"diagnoses":[{"code":"F32.9","code_type":"icd10cm","evidence":[{"quote":"major depressive disorder","start":0,"end":0}]}],"procedures":[],"modifiers":[],"missing_documentation":[],"contradictions":[]}'
+    depends_on:
+      db-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+
+  api-test:
+    build: ../backend
+    command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+    environment:
+      APP_ENV: testing
+      DATABASE_URL: postgresql+psycopg2://mbc_test:mbc_test_password@db-test:5432/mbc_test
+      CELERY_BROKER_URL: redis://redis-test:6379/0
+      SECRET_KEY: test-secret-key-0123456789abcdef
+      AUDIT_HMAC_KEY: test-audit-hmac-key-0123456789abcdef
+      MFA_ENCRYPTION_KEY: test-mfa-key-0123456789abcdef=
+      AI_ENABLED: "true"
+      AI_PROVIDER: mock
+      AI_PHI_APPROVED: "false"
+      CORS_ORIGINS: http://localhost:3001
+      RATE_LIMIT_ENABLED: "false"
+    ports:
+      - "8001:8000"
+    depends_on:
+      db-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+
+  frontend-test:
+    build: ../frontend
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8001
+    ports:
+      - "3001:3000"
+    depends_on:
+      - api-test

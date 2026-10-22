@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: Phase 7 completion.
+Last updated: Phase 8 completion.
 
 | Phase | Scope | Status |
 |---|---|---|
@@ -10,10 +10,11 @@ Last updated: Phase 7 completion.
 | 4 — Async coding jobs | Celery + Redis worker, durable queued→running→completed/failed lifecycle, idempotent at-least-once delivery, bounded retries, stale-job recovery, 202 async API + frontend polling | ✅ Complete |
 | 5 — Batch document ingestion | Batch/document models + migration, secure multi-file upload, PDF text extraction, strict CSV import, staged idempotent worker pipeline, batch status API + frontend | ✅ Complete |
 | 6 — Exports & coding summaries | CSV/XLSX collection exports, per-encounter PDF summary, batch CSV export, formula-injection + filename safeguards, audit, frontend actions | ✅ Complete |
-| **7 — Hardening & verification** | Fail-closed production config validation, security headers, storage/export/cross-tenant hardening tests, PostgreSQL/Redis integration scaffolding, operations/retention documentation | ✅ **Complete** |
-| 7b — Documents (remaining) | Audio transcription, malware-scan hook, object storage | Planned |
-| 8 — SaaS & durable memory | Subscriptions, usage ledger, Stripe + webhooks, tenant-scoped memory (pgvector optional) | Planned |
-| 9 — Interop | FHIR export, dashboards, usage metrics, browser E2E (Playwright) | Planned |
+| 7 — Hardening & verification | Fail-closed production config validation, security headers, storage/export/cross-tenant hardening tests, PostgreSQL/Redis integration scaffolding, operations/retention documentation | ✅ Complete |
+| **8 — Reproducible integration testing** | Docker test stack (PostgreSQL/Redis/API/worker), real PostgreSQL + Redis/Celery integration suite, Playwright E2E suite, CI workflow, PowerShell helpers | ✅ **Complete (infra/tests authored; not executed here — Docker unavailable)** |
+| 8b — Documents (remaining) | Audio transcription, malware-scan hook, object storage | Planned |
+| 9 — SaaS & durable memory | Subscriptions, usage ledger, Stripe + webhooks, tenant-scoped memory (pgvector optional) | Planned |
+| 10 — Interop | FHIR export, dashboards, usage metrics | Planned |
 
 ## Phase 3 — delivered
 
@@ -120,19 +121,39 @@ Last updated: Phase 7 completion.
   response posture; `docs/SECURITY.md` records remaining gaps (recovery, email
   verification, MFA reauth, distributed rate limiting, DB-level audit enforcement).
 
-## Verification (Phase 7)
+## Phase 8 — delivered (reproducible integration testing)
 
-- ✅ Backend: 120 tests pass + 3 integration tests skipped (no PostgreSQL/Redis);
-  `ruff check app tests` clean.
-- ✅ Alembic `check` — no drift (no migration added).
-- ✅ Frontend: `next lint` (no warnings/errors), `tsc --noEmit` clean, production build clean (8 routes).
-- ✅ Frontend tests: 17 pass (5 suites) via Jest + Testing Library.
-- ⚠️ PostgreSQL, Redis/Celery, and browser E2E verification NOT run (unavailable here).
+- **Test stack** — `infra/docker-compose.test.yml` (disposable Postgres 5433, Redis
+  6380, API 8001, Celery worker, frontend 3001; tmpfs/no-persistence; synthetic
+  test-only credentials; mock AI with a deterministic `MOCK_PROVIDER_RESPONSE`).
+- **Real PostgreSQL integration tests** — `backend/integration_tests/test_postgres.py`
+  (migration, transaction rollback, tenant isolation, idempotency-key uniqueness,
+  concurrent coding-job claim, export filtering).
+- **Real Redis/Celery integration tests** — `backend/integration_tests/test_redis_celery.py`
+  (job executes via the real worker; duplicate delivery is idempotent).
+- **Browser E2E** — `e2e/` Playwright suite (auth, create/code/review, cross-tenant
+  rejection, CSV/XLSX/PDF export) with synthetic data only.
+- **CI** — `.github/workflows/ci.yml` separates unit / integration (real Postgres +
+  Redis + live worker) / frontend / browser E2E jobs.
+- **Helpers** — `scripts/test-infra.ps1` (up/integration/e2e/logs/clean).
+- **Test-only enhancement** — `mock_provider_response` config so the mock provider can
+  serve a deterministic output without any external AI call (production default
+  `ai_enabled=false` unchanged).
 
-## Known limitations (Phase 7)
+## Verification (Phase 8)
 
-- PostgreSQL/Redis integration and browser E2E are written as skippable scaffolding
-  and documented manual procedures, but were not executed in this environment.
+- ✅ Backend unit suite: 120 passed + 3 skipped (offline) — exit 0; `ruff check app tests integration_tests` clean.
+- ✅ Integration suite authored and gated: `pytest integration_tests` → **8 skipped** (no PostgreSQL/Redis here — not executed).
+- ✅ Alembic `check` — no drift.
+- ✅ Frontend: `tsc --noEmit`, `next lint`, 17 tests, and production build all pass.
+- ❌ **Not executed in this environment**: real PostgreSQL, real Redis/Celery, and
+  Playwright browser E2E — Docker/browser tooling is unavailable; these require the
+  documented commands on a Docker-capable host.
+
+## Known limitations (Phase 8)
+
+- Docker, PostgreSQL, Redis, and browser tooling are not installed here, so the
+  integration and E2E suites were authored and gated but **not executed**.
 - No account recovery/email verification, no MFA step-up, in-memory rate limiting,
   and application-level (not database-enforced) audit.
 - Local filesystem storage is development-only; no object storage, malware scan,
