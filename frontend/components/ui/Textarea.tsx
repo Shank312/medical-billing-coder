@@ -10,18 +10,18 @@ type TextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
 
 export function Textarea({ label, id, error, hint, className = "", ...props }: TextareaProps) {
   const border = error
-    ? "border-red-300 focus:border-red-500 focus:ring-red-500"
-    : "border-slate-300 focus:border-brand-500 focus:ring-brand-500";
+    ? "border-red-300 focus:border-red-500 focus:ring-red-500/20"
+    : "border-line focus:border-accent-500 focus:ring-accent-500/20";
 
   return (
-    <div className="space-y-1">
-      <label htmlFor={id} className="block text-sm font-medium text-slate-700">
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="block text-sm font-medium text-ink">
         {label}
       </label>
       <textarea
         id={id}
         className={cn(
-          "block w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2",
+          "block w-full rounded-lg border bg-white px-3 py-2 text-sm text-ink shadow-sm placeholder:text-ink-faint focus:outline-none focus:ring-2",
           border,
           className,
         )}
@@ -30,12 +30,12 @@ export function Textarea({ label, id, error, hint, className = "", ...props }: T
         {...props}
       />
       {hint ? (
-        <p id={`${id}-hint`} className="text-xs text-slate-500">
+        <p id={`${id}-hint`} className="text-xs text-ink-muted">
           {hint}
         </p>
       ) : null}
       {error ? (
-        <p id={`${id}-error`} className="text-sm text-red-600" role="alert">
+        <p id={`${id}-error`} className="text-sm text-red-700" role="alert">
           {error}
         </p>
       ) : null}

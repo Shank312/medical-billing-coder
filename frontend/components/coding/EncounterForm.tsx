@@ -64,67 +64,84 @@ export function EncounterForm() {
         Enter the clinical documentation. Coding is only run when you explicitly submit it.
       </p>
 
-      <form onSubmit={handleSubmit} className="mt-6 space-y-4" noValidate>
+      <form onSubmit={handleSubmit} className="mt-6 space-y-5" noValidate>
         {error ? <Alert variant="error">{error}</Alert> : null}
 
-        <Input
-          id="date"
-          label="Date of service"
-          type="date"
-          required
-          value={date}
-          onChange={(event) => setDate(event.target.value)}
-          error={fieldErrors.date}
-        />
+        <div>
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-faint">
+            Service details
+          </h2>
+          <div className="space-y-4">
+            <Input
+              id="date"
+              label="Date of service"
+              type="date"
+              required
+              value={date}
+              onChange={(event) => setDate(event.target.value)}
+              error={fieldErrors.date}
+            />
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Input
-            id="encounter-type"
-            label="Encounter type"
-            value={encounterType}
-            onChange={(event) => setEncounterType(event.target.value)}
-            placeholder="e.g. office visit"
-          />
-          <Input
-            id="place-of-service"
-            label="Place of service"
-            value={placeOfService}
-            onChange={(event) => setPlaceOfService(event.target.value)}
-            placeholder="e.g. 11"
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input
+                id="encounter-type"
+                label="Encounter type"
+                value={encounterType}
+                onChange={(event) => setEncounterType(event.target.value)}
+                placeholder="e.g. office visit"
+              />
+              <Input
+                id="place-of-service"
+                label="Place of service"
+                value={placeOfService}
+                onChange={(event) => setPlaceOfService(event.target.value)}
+                placeholder="e.g. 11"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-faint">
+            Patient & billing
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input
+              id="patient-reference"
+              label="Patient reference"
+              value={patientRef}
+              onChange={(event) => setPatientRef(event.target.value)}
+              placeholder="Opaque identifier (no names)"
+            />
+            <Input
+              id="payer"
+              label="Payer context"
+              value={payer}
+              onChange={(event) => setPayer(event.target.value)}
+              placeholder="e.g. Medicare"
+            />
+          </div>
+        </div>
+
+        <div>
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-faint">
+            Clinical note
+          </h2>
+          <Textarea
+            id="note"
+            label="Clinical note"
+            required
+            rows={12}
+            maxLength={NOTE_MAX}
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+            error={fieldErrors.note}
+            hint={`${note.length.toLocaleString()} / ${NOTE_MAX.toLocaleString()} characters`}
+            placeholder="Paste or type the clinical documentation here."
           />
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Input
-            id="patient-reference"
-            label="Patient reference"
-            value={patientRef}
-            onChange={(event) => setPatientRef(event.target.value)}
-            placeholder="Opaque identifier (no names)"
-          />
-          <Input
-            id="payer"
-            label="Payer context"
-            value={payer}
-            onChange={(event) => setPayer(event.target.value)}
-            placeholder="e.g. Medicare"
-          />
-        </div>
-
-        <Textarea
-          id="note"
-          label="Clinical note"
-          required
-          rows={12}
-          maxLength={NOTE_MAX}
-          value={note}
-          onChange={(event) => setNote(event.target.value)}
-          error={fieldErrors.note}
-          hint={`${note.length.toLocaleString()} / ${NOTE_MAX.toLocaleString()} characters`}
-          placeholder="Paste or type the clinical documentation here."
-        />
-
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 border-t border-line pt-4">
           <Button type="submit" loading={loading}>
             {loading ? "Creating…" : "Create encounter"}
           </Button>

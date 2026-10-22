@@ -2,22 +2,29 @@ import type { ButtonHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "primary" | "secondary" | "ghost";
+  variant?: "primary" | "secondary" | "ghost" | "success" | "danger" | "warning";
   size?: "sm" | "md" | "lg";
   loading?: boolean;
 };
 
 const VARIANT_CLASSES: Record<NonNullable<ButtonProps["variant"]>, string> = {
-  primary: "bg-brand-600 text-white hover:bg-brand-700 focus-visible:outline-brand-600",
+  primary:
+    "bg-brand-700 text-white shadow-sm hover:bg-brand-800 focus-visible:outline-brand-700",
   secondary:
-    "bg-white text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50 focus-visible:outline-slate-400",
-  ghost: "text-slate-600 hover:bg-slate-100 focus-visible:outline-slate-400",
+    "bg-white text-ink ring-1 ring-inset ring-line hover:bg-surface focus-visible:outline-brand-700",
+  ghost: "text-ink-muted hover:bg-slate-100 hover:text-ink focus-visible:outline-brand-700",
+  success:
+    "bg-emerald-50 text-emerald-800 ring-1 ring-inset ring-emerald-200 hover:bg-emerald-100 focus-visible:outline-emerald-600",
+  danger:
+    "bg-red-50 text-red-800 ring-1 ring-inset ring-red-200 hover:bg-red-100 focus-visible:outline-red-600",
+  warning:
+    "bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200 hover:bg-amber-100 focus-visible:outline-amber-600",
 };
 
 const SIZE_CLASSES: Record<NonNullable<ButtonProps["size"]>, string> = {
-  sm: "px-3 py-1.5 text-xs",
+  sm: "px-2.5 py-1.5 text-xs",
   md: "px-4 py-2 text-sm",
-  lg: "px-6 py-3 text-base",
+  lg: "px-5 py-2.5 text-sm",
 };
 
 export function Button({
@@ -30,7 +37,7 @@ export function Button({
   ...props
 }: ButtonProps) {
   const base =
-    "inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60";
+    "inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60";
 
   return (
     <button
@@ -41,7 +48,7 @@ export function Button({
     >
       {loading ? (
         <span
-          className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+          className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent"
           aria-hidden="true"
         />
       ) : null}

@@ -126,8 +126,8 @@ export default function BatchDetailPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Batch</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <h1 className="text-2xl font-semibold tracking-tight text-ink">Batch</h1>
+          <p className="mt-1 text-sm text-ink-muted">
             Created {formatDate(batch.created_at)} · Date of service {formatDate(batch.date_of_service)}
           </p>
         </div>
@@ -153,46 +153,46 @@ export default function BatchDetailPage() {
 
       {error ? <Alert variant="error">{error}</Alert> : null}
 
-      <section className="rounded-xl border border-slate-200 bg-white p-4">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Documents</h2>
+      <section className="rounded-2xl border border-line bg-white p-5 shadow-card">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-faint">Documents</h2>
         {batch.documents.length === 0 ? (
           <p className="text-sm text-slate-500">No documents in this batch.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="text-slate-500">
+              <thead className="border-b border-line text-[11px] uppercase tracking-wider text-ink-faint">
                 <tr>
-                  <th className="px-3 py-2">File</th>
-                  <th className="px-3 py-2">Status</th>
-                  <th className="px-3 py-2">Encounter</th>
-                  <th className="px-3 py-2">Actions</th>
+                  <th className="px-3 py-2 font-semibold">File</th>
+                  <th className="px-3 py-2 font-semibold">Status</th>
+                  <th className="px-3 py-2 font-semibold">Encounter</th>
+                  <th className="px-3 py-2 font-semibold">Actions</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-line/70">
                 {batch.documents.map((d) => (
-                  <tr key={d.id} className="border-t border-slate-100">
-                    <td className="px-3 py-2">
-                      <div className="font-medium text-slate-800">{d.original_filename}</div>
-                      <div className="text-xs text-slate-400">
+                  <tr key={d.id} className="transition-colors hover:bg-surface/70">
+                    <td className="px-3 py-2.5">
+                      <div className="font-medium text-ink">{d.original_filename}</div>
+                      <div className="text-xs text-ink-faint">
                         {d.media_type} · {d.byte_size} bytes
                       </div>
                     </td>
-                    <td className="px-3 py-2">
-                      <span className="font-medium">{statusLabel(d.extraction_status)}</span>
+                    <td className="px-3 py-2.5">
+                      <span className="font-medium text-ink">{statusLabel(d.extraction_status)}</span>
                       {d.error_code ? (
                         <div className="text-xs text-red-600">{d.error_code}</div>
                       ) : null}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2.5">
                       {d.encounter_id ? (
-                        <Link className="text-brand-700 hover:underline" href={`/encounters/${d.encounter_id}`}>
+                        <Link className="text-accent-700 hover:underline" href={`/encounters/${d.encounter_id}`}>
                           Open workspace
                         </Link>
                       ) : (
-                        <span className="text-slate-400">—</span>
+                        <span className="text-ink-faint">—</span>
                       )}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2.5">
                       {d.extraction_status === "failed" ? (
                         <Button size="sm" loading={busy === d.id} onClick={() => handleRetry(d)}>
                           Retry

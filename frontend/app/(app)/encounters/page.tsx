@@ -28,7 +28,7 @@ const SORT_OPTIONS = [
 ] as const;
 
 const selectClasses =
-  "mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500";
+  "mt-1 block w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink shadow-sm focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-500/20";
 
 export default function EncountersPage() {
   const [encounters, setEncounters] = useState<Encounter[]>([]);
@@ -104,16 +104,16 @@ export default function EncountersPage() {
     <div className="mx-auto max-w-5xl space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Encounters</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <h1 className="text-2xl font-semibold tracking-tight text-ink">Encounters</h1>
+          <p className="mt-1 text-sm text-ink-muted">
             {total} encounter{total === 1 ? "" : "s"}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button loading={exporting === "csv"} disabled={exporting !== null} onClick={() => handleExport("csv")}>
+          <Button variant="secondary" loading={exporting === "csv"} disabled={exporting !== null} onClick={() => handleExport("csv")}>
             Export CSV
           </Button>
-          <Button loading={exporting === "xlsx"} disabled={exporting !== null} onClick={() => handleExport("xlsx")}>
+          <Button variant="secondary" loading={exporting === "xlsx"} disabled={exporting !== null} onClick={() => handleExport("xlsx")}>
             Export XLSX
           </Button>
           <Link href="/encounters/new">

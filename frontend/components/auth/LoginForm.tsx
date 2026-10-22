@@ -42,9 +42,17 @@ export function LoginForm() {
 
   return (
     <Card className="w-full max-w-md p-8">
-      <div className="mb-6 text-center">
-        <h1 className="text-2xl font-semibold text-slate-900">Medical Billing Coder</h1>
-        <p className="mt-1 text-sm text-slate-500">Sign in to your coding workspace</p>
+      <div className="mb-6 flex flex-col items-center text-center">
+        <div
+          className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent-600 text-white shadow-sm"
+          aria-hidden="true"
+        >
+          <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2.2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 5.5v13m-6.5-6.5h13" />
+          </svg>
+        </div>
+        <h1 className="mt-3 text-xl font-semibold tracking-tight text-ink">Medical Billing Coder</h1>
+        <p className="mt-1 text-sm text-ink-muted">Sign in to your coding workspace</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>

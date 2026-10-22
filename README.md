@@ -210,6 +210,8 @@ retention, backup, and incident-response procedures.
 - [`docs/SECURITY.md`](docs/SECURITY.md)
 - [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md)
 - [`docs/API.md`](docs/API.md)
+- [`docs/REFERENCE_DATA.md`](docs/REFERENCE_DATA.md)
 - [`docs/OPERATIONS.md`](docs/OPERATIONS.md)
+- [`docs/READINESS.md`](docs/READINESS.md)
 - [`docs/COMPLIANCE_CHECKLIST.md`](docs/COMPLIANCE_CHECKLIST.md)
 - [`PROJECT_STATUS.md`](PROJECT_STATUS.md)

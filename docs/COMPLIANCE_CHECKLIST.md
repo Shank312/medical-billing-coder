@@ -44,8 +44,10 @@ For every provider that may receive PHI:
 
 - [ ] TLS enforcement end-to-end in production (terminate TLS; set `COOKIE_SECURE=true`).
 - [ ] Managed secrets + automated key rotation.
-- [ ] Backup, restore, and retention/deletion workflows.
-- [ ] Upload validation, size/type allow-lists, and malware scanning (Phase 4).
+- [ ] Backup, restore, and retention/deletion workflows (untested; see `OPERATIONS.md`).
+- [ ] Malware scanning for uploads (Phase 5 upload validation + size/type allow-lists are
+      implemented; scanning is the remaining integration point).
+- [ ] Object storage for uploads (Phase 5 uses a local-filesystem dev implementation).
 - [ ] Data classification and field-level encryption for stored PHI.
 - [ ] Database-level append-only enforcement and external audit-chain export.
 - [ ] Email verification and account recovery.
@@ -76,7 +78,8 @@ For every provider that may receive PHI:
 
 ## Status
 
-Phases 1–2 implement the technical foundations in section 3 and the AI coding
-safeguards in section 6. Sections 1 (BAAs), 2 (provider eligibility), 4 (remaining
+Phases 1–8 implement the technical foundations in section 3 and the AI coding
+safeguards in section 6, plus batch ingestion, exports, and a reproducible
+integration/E2E test stack. Sections 1 (BAAs), 2 (provider eligibility), 4 (remaining
 technical controls), and 5 (operational/administrative controls) remain open and
 must be completed — with independent verification — before any production or PHI use.

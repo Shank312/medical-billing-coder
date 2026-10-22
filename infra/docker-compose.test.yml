@@ -64,7 +64,7 @@ services:
       AI_ENABLED: "true"
       AI_PROVIDER: mock
       AI_PHI_APPROVED: "false"
-      CORS_ORIGINS: http://localhost:3001
+      CORS_ORIGINS: '["http://localhost:3001"]'
       RATE_LIMIT_ENABLED: "false"
     ports:
       - "8001:8000"

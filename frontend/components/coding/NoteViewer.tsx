@@ -26,7 +26,7 @@ export function NoteViewer({
 
   if (note === null || note === undefined) {
     return (
-      <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+      <div className="rounded-lg border border-line bg-surface px-4 py-8 text-center text-sm text-ink-muted">
         Source note unavailable.
       </div>
     );
@@ -34,14 +34,14 @@ export function NoteViewer({
 
   if (note.length === 0) {
     return (
-      <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+      <div className="rounded-lg border border-line bg-surface px-4 py-8 text-center text-sm text-ink-muted">
         No source note text.
       </div>
     );
   }
 
   return (
-    <div className="whitespace-pre-wrap break-words font-mono text-[13px] leading-relaxed text-slate-800">
+    <div className="whitespace-pre-wrap break-words font-mono text-[13px] leading-relaxed text-ink">
       {segments.map((segment, index) => {
         const isActive = segment.highlighted && segment.suggestionId === activeSuggestionId;
         return (
@@ -49,7 +49,7 @@ export function NoteViewer({
             key={index}
             ref={isActive ? activeRef : undefined}
             className={cn(
-              segment.highlighted && "rounded-sm bg-amber-100",
+              segment.highlighted && "rounded-sm bg-amber-100 px-px",
               isActive && "bg-amber-200 ring-1 ring-amber-400",
             )}
           >

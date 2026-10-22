@@ -87,8 +87,8 @@ export default function BatchesPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Batch ingestion</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <h1 className="text-2xl font-semibold tracking-tight text-ink">Batch ingestion</h1>
+          <p className="mt-1 text-sm text-ink-muted">
             Upload clinical PDFs or CSV files for secure, auditable coding.
           </p>
         </div>
@@ -98,8 +98,8 @@ export default function BatchesPage() {
       {notice ? <Alert variant="info">{notice}</Alert> : null}
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <section className="rounded-xl border border-slate-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">New batch</h2>
+        <section className="rounded-2xl border border-line bg-white p-5 shadow-card">
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-faint">New batch</h2>
           <Input
             id="date_of_service"
             label="Date of service (optional; applies to PDF documents)"
@@ -115,11 +115,11 @@ export default function BatchesPage() {
           </div>
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Upload files</h2>
+        <section className="rounded-2xl border border-line bg-white p-5 shadow-card">
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-faint">Upload files</h2>
           <label className="mb-1 block text-sm font-medium text-slate-700">Batch</label>
           <select
-            className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+            className="mt-1 block w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink shadow-sm focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-500/20"
             value={selectedBatch}
             onChange={(e) => setSelectedBatch(e.target.value)}
           >
@@ -140,33 +140,33 @@ export default function BatchesPage() {
       </div>
 
       <section className="rounded-xl border border-slate-200 bg-white p-4">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Batches</h2>
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-ink-faint">Batches</h2>
         {batches.length === 0 ? (
           <EmptyState title="No batches yet" description="Create a batch and upload documents to begin." />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="text-slate-500">
+              <thead className="border-b border-line text-[11px] uppercase tracking-wider text-ink-faint">
                 <tr>
-                  <th className="px-3 py-2">Created</th>
-                  <th className="px-3 py-2">Date of service</th>
-                  <th className="px-3 py-2">Status</th>
-                  <th className="px-3 py-2">Documents</th>
-                  <th className="px-3 py-2">Failed</th>
+                  <th className="px-3 py-2 font-semibold">Created</th>
+                  <th className="px-3 py-2 font-semibold">Date of service</th>
+                  <th className="px-3 py-2 font-semibold">Status</th>
+                  <th className="px-3 py-2 font-semibold">Documents</th>
+                  <th className="px-3 py-2 font-semibold">Failed</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-line/70">
                 {batches.map((b) => (
-                  <tr key={b.id} className="border-t border-slate-100">
-                    <td className="px-3 py-2">{formatDate(b.created_at)}</td>
-                    <td className="px-3 py-2">{formatDate(b.date_of_service)}</td>
-                    <td className="px-3 py-2">
-                      <Link className="font-medium text-brand-700 hover:underline" href={`/batches/${b.id}`}>
+                  <tr key={b.id} className="transition-colors hover:bg-surface/70">
+                    <td className="px-3 py-2.5 text-ink-muted">{formatDate(b.created_at)}</td>
+                    <td className="px-3 py-2.5 text-ink-muted">{formatDate(b.date_of_service)}</td>
+                    <td className="px-3 py-2.5">
+                      <Link className="font-medium text-accent-700 hover:underline" href={`/batches/${b.id}`}>
                         {b.status}
                       </Link>
                     </td>
-                    <td className="px-3 py-2">{b.total_documents}</td>
-                    <td className="px-3 py-2">{b.failed_documents}</td>
+                    <td className="px-3 py-2.5 text-ink-muted">{b.total_documents}</td>
+                    <td className="px-3 py-2.5 text-ink-muted">{b.failed_documents}</td>
                   </tr>
                 ))}
               </tbody>
